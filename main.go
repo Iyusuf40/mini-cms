@@ -48,11 +48,11 @@ func serveRoot(c echo.Context) error {
 	// index.js should add to the html element a collapsible
 	// to add nodes
 
-	err := BuildHtml("/", EgSiteRep)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return err
-	}
+	// err := BuildHtml("/", EgSiteRep)
+	// if err != nil {
+	// 	fmt.Fprintln(os.Stderr, err.Error())
+	// 	return err
+	// }
 	return c.File("index.html")
 }
 

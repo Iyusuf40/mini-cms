@@ -32,8 +32,8 @@ var stylePropsAndItsCss = [][2]string{
 }
 
 var htmlAttributesToSet = []string{
-	"node_id",
-	"parent_node_id",
+	"nodeId",
+	"parentNodeId",
 	"src",
 	"alt",
 }
@@ -45,11 +45,11 @@ var EgSiteRep = map[string]any{
 	"title": "mini-cms",
 	"children": map[string]any{
 		"body": map[string]any{
-			"node_id": "timestamp_0",
+			"nodeId": "timestamp_0",
 			"children": map[string]any{
 				"header": map[string]any{
-					"node_id":         "timestamp_1",
-					"parent_node_id":  "timestamp_0",
+					"nodeId":          "timestamp_1",
+					"parentNodeId":    "timestamp_0",
 					"type":            "container",
 					"text":            "link 1",
 					"backgroundColor": "green",
@@ -58,13 +58,13 @@ var EgSiteRep = map[string]any{
 					"vertical":        true,
 					"children": map[string]any{
 						"0": map[string]any{
-							"node_id":        "timestamp_2",
-							"parent_node_id": "timestamp_1",
-							"type":           "link",
-							"url":            "http://test.com",
-							"fontColor":      "red",
-							"width":          "20",
-							"height":         "20",
+							"nodeId":       "timestamp_2",
+							"parentNodeId": "timestamp_1",
+							"type":         "link",
+							"url":          "http://test.com",
+							"fontColor":    "red",
+							"width":        "20",
+							"height":       "20",
 							// "backgroundColor": "black",
 							"fontSize":   "30",
 							"horizontal": true,
@@ -74,8 +74,8 @@ var EgSiteRep = map[string]any{
 							"right":      false,
 							"children": map[string]any{
 								"0": map[string]any{
-									"node_id":         "timestamp_3",
-									"parent_node_id":  "timestamp_2",
+									"nodeId":          "timestamp_3",
+									"parentNodeId":    "timestamp_2",
 									"type":            "text",
 									"url":             "http://test.com",
 									"text":            "nested 1",
@@ -91,8 +91,8 @@ var EgSiteRep = map[string]any{
 									"right":           false,
 								},
 								"1": map[string]any{
-									"node_id":         "timestamp_4",
-									"parent_node_id":  "timestamp_2",
+									"nodeId":          "timestamp_4",
+									"parentNodeId":    "timestamp_2",
 									"type":            "text",
 									"url":             "http://test.com",
 									"text":            "nested 2",
@@ -114,8 +114,8 @@ var EgSiteRep = map[string]any{
 								}},
 						},
 						"1": map[string]any{
-							"node_id":         "timestamp_5",
-							"parent_node_id":  "timestamp_1",
+							"nodeId":          "timestamp_5",
+							"parentNodeId":    "timestamp_1",
 							"type":            "text",
 							"text":            "text 1",
 							"fontColor":       "blue",
@@ -300,9 +300,13 @@ func getInlineStyle(node map[string]any) string {
 			case "horizontal":
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "flex")
 				stylesAndValues = fmt.Sprintf(`%s flex-direction: %s;`, stylesAndValues, "row")
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "gap", "1rem")
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "flex-wrap", "wrap")
 			case "vertical":
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "flex")
 				stylesAndValues = fmt.Sprintf(`%s flex-direction: %s;`, stylesAndValues, "column")
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "gap", "1rem")
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "flex-wrap", "wrap")
 			case "left":
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "left")
 			case "right":
@@ -317,7 +321,7 @@ func getInlineStyle(node map[string]any) string {
 		stylesAndValues = fmt.Sprintf(`%s %s;`, stylesAndValues, extendedStyle)
 	}
 
-	style := fmt.Sprintf(`style="%s; position: relative;"`, stylesAndValues)
+	style := fmt.Sprintf(`style="position: relative; %s"`, stylesAndValues)
 
 	return style
 }
