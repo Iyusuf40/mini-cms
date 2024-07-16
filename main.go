@@ -3,6 +3,7 @@ package main
 import (
 	"fmt"
 	"net/http"
+	"os"
 
 	"github.com/Iyusuf40/goBackendUtils"
 
@@ -46,13 +47,30 @@ func serveRoot(c echo.Context) error {
 	// send back index.js too
 	// index.js should add to the html element a collapsible
 	// to add nodes
-	return c.String(http.StatusOK, "Hello root")
+
+	err := BuildHtml("/", EgSiteRep)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return err
+	}
+	return c.File("index.html")
 }
 
 func servePath(c echo.Context) error {
 	path := c.Param("path")
+
+	dirWIthPath, err := getAbsolutePathRelativeToCWD(path)
+
+	if err != nil {
+		return err
+	}
+
+	if path == "index.js" {
+		return c.File(dirWIthPath)
+	}
+
 	// look at index.html at path directory and send back
-	return c.String(http.StatusOK, "Hello "+path)
+	return c.File(dirWIthPath + "/index.html")
 }
 
 func addPath(c echo.Context) error {
@@ -80,4 +98,12 @@ func updatePath(c echo.Context) error {
 	// if update is at header or footer recursively rebuild changed
 	// section to all nested paths
 	return nil
+}
+
+func fileExists(filename string) bool {
+	info, err := os.Stat(filename)
+	if os.IsNotExist(err) {
+		return false
+	}
+	return !info.IsDir()
 }
