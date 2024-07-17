@@ -42,96 +42,106 @@ var htmlAttributesToSet = []string{
 var nodeClass = "__node"
 var htmlElementNodeId = "0"
 
+// var EgSiteRep = map[string]any{
+// 	"title": "mini-cms",
+// 	"children": map[string]any{
+// 		"body": map[string]any{
+// 			"nodeId": "timestamp_0",
+// 			"children": map[string]any{
+// 				"header": map[string]any{
+// 					"nodeId":          "timestamp_1",
+// 					"parentNodeId":    "timestamp_0",
+// 					"type":            "container",
+// 					"text":            "link 1",
+// 					"backgroundColor": "green",
+// 					"padding":         "10",
+// 					"width":           "500",
+// 					"vertical":        true,
+// 					"children": map[string]any{
+// 						"0": map[string]any{
+// 							"nodeId":       "timestamp_2",
+// 							"parentNodeId": "timestamp_1",
+// 							"type":         "link",
+// 							"url":          "http://test.com",
+// 							"fontColor":    "red",
+// 							"width":        "20",
+// 							"height":       "20",
+// 							// "backgroundColor": "black",
+// 							"fontSize":   "30",
+// 							"horizontal": true,
+// 							"vertical":   false,
+// 							"left":       true,
+// 							"center":     false,
+// 							"right":      false,
+// 							"children": map[string]any{
+// 								"0": map[string]any{
+// 									"nodeId":          "timestamp_3",
+// 									"parentNodeId":    "timestamp_2",
+// 									"type":            "text",
+// 									"url":             "http://test.com",
+// 									"text":            "nested 1",
+// 									"fontColor":       "cyan",
+// 									"width":           "20",
+// 									"height":          "20",
+// 									"backgroundColor": "red",
+// 									"fontSize":        "30",
+// 									"horizontal":      true,
+// 									"vertical":        false,
+// 									"left":            true,
+// 									"center":          false,
+// 									"right":           false,
+// 								},
+// 								"1": map[string]any{
+// 									"nodeId":          "timestamp_4",
+// 									"parentNodeId":    "timestamp_2",
+// 									"type":            "text",
+// 									"url":             "http://test.com",
+// 									"text":            "nested 2",
+// 									"fontColor":       "cyan",
+// 									"width":           "20",
+// 									"height":          "20",
+// 									"backgroundColor": "red",
+// 									"fontSize":        "30",
+// 									"horizontal":      true,
+// 									"vertical":        false,
+// 									"left":            true,
+// 									"center":          false,
+// 									"right":           false,
+// 									"shiftTop":        "10",
+// 									"shiftLeft":       "10",
+// 									"paddingTop":      "10",
+// 									"paddingLeft":     "10",
+// 									"edgeRounding":    "20",
+// 								}},
+// 						},
+// 						"1": map[string]any{
+// 							"nodeId":          "timestamp_5",
+// 							"parentNodeId":    "timestamp_1",
+// 							"type":            "text",
+// 							"text":            "text 1",
+// 							"fontColor":       "blue",
+// 							"width":           "40",
+// 							"height":          "40",
+// 							"backgroundColor": "yellow",
+// 							"fontSize":        "30",
+// 							"horizontal":      true,
+// 							"vertical":        false,
+// 							"left":            true,
+// 							"center":          false,
+// 							"right":           false,
+// 						},
+// 					},
+// 				}},
+// 		},
+// 	},
+// }
+
 var EgSiteRep = map[string]any{
 	"title": "mini-cms",
 	"children": map[string]any{
-		"body": map[string]any{
+		"0": map[string]any{
 			"nodeId": "timestamp_0",
-			"children": map[string]any{
-				"header": map[string]any{
-					"nodeId":          "timestamp_1",
-					"parentNodeId":    "timestamp_0",
-					"type":            "container",
-					"text":            "link 1",
-					"backgroundColor": "green",
-					"padding":         "10",
-					"width":           "500",
-					"vertical":        true,
-					"children": map[string]any{
-						"0": map[string]any{
-							"nodeId":       "timestamp_2",
-							"parentNodeId": "timestamp_1",
-							"type":         "link",
-							"url":          "http://test.com",
-							"fontColor":    "red",
-							"width":        "20",
-							"height":       "20",
-							// "backgroundColor": "black",
-							"fontSize":   "30",
-							"horizontal": true,
-							"vertical":   false,
-							"left":       true,
-							"center":     false,
-							"right":      false,
-							"children": map[string]any{
-								"0": map[string]any{
-									"nodeId":          "timestamp_3",
-									"parentNodeId":    "timestamp_2",
-									"type":            "text",
-									"url":             "http://test.com",
-									"text":            "nested 1",
-									"fontColor":       "cyan",
-									"width":           "20",
-									"height":          "20",
-									"backgroundColor": "red",
-									"fontSize":        "30",
-									"horizontal":      true,
-									"vertical":        false,
-									"left":            true,
-									"center":          false,
-									"right":           false,
-								},
-								"1": map[string]any{
-									"nodeId":          "timestamp_4",
-									"parentNodeId":    "timestamp_2",
-									"type":            "text",
-									"url":             "http://test.com",
-									"text":            "nested 2",
-									"fontColor":       "cyan",
-									"width":           "20",
-									"height":          "20",
-									"backgroundColor": "red",
-									"fontSize":        "30",
-									"horizontal":      true,
-									"vertical":        false,
-									"left":            true,
-									"center":          false,
-									"right":           false,
-									"shiftTop":        "10",
-									"shiftLeft":       "10",
-									"paddingTop":      "10",
-									"paddingLeft":     "10",
-									"edgeRounding":    "20",
-								}},
-						},
-						"1": map[string]any{
-							"nodeId":          "timestamp_5",
-							"parentNodeId":    "timestamp_1",
-							"type":            "text",
-							"text":            "text 1",
-							"fontColor":       "blue",
-							"width":           "40",
-							"height":          "40",
-							"backgroundColor": "yellow",
-							"fontSize":        "30",
-							"horizontal":      true,
-							"vertical":        false,
-							"left":            true,
-							"center":          false,
-							"right":           false,
-						},
-					},
-				}},
+			"text":   "hello",
 		},
 	},
 }
@@ -142,8 +152,9 @@ func BuildHtml(path string, siteRep map[string]any) error {
 		return err
 	}
 	title, _ := siteRep["title"].(string)
+
 	html := openHtml(title)
-	html = fmt.Sprintf("%s\n%s", html, convertNodeToHtml(siteRep, ""))
+	html = fmt.Sprintf("%s\n%s", html, convertNodeToHtml(siteRep, "body"))
 	html = fmt.Sprintf("%s\n%s", html, closeHtml())
 
 	path, err = getAbsolutePathRelativeToCWD(path)
@@ -363,5 +374,5 @@ func openHtml(title string) string {
 }
 
 func closeHtml() string {
-	return `<script src="index.js"></script></html>`
+	return "<script src=\"index.js\"></script>\n</html>"
 }

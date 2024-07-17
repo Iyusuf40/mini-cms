@@ -38,6 +38,8 @@ func ServeSite() {
 	e.PUT("/", updatePath)
 	e.PUT("/:", updatePath)
 
+	e.GET("/siterep", getSiteRep)
+
 	e.Logger.Fatal(e.Start(":" + PORT))
 }
 
@@ -48,11 +50,11 @@ func serveRoot(c echo.Context) error {
 	// index.js should add to the html element a collapsible
 	// to add nodes
 
-	// err := BuildHtml("/", EgSiteRep)
-	// if err != nil {
-	// 	fmt.Fprintln(os.Stderr, err.Error())
-	// 	return err
-	// }
+	err := BuildHtml("/", EgSiteRep)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return err
+	}
 	return c.File("index.html")
 }
 
@@ -98,6 +100,10 @@ func updatePath(c echo.Context) error {
 	// if update is at header or footer recursively rebuild changed
 	// section to all nested paths
 	return nil
+}
+
+func getSiteRep(c echo.Context) error {
+	return c.JSON(http.StatusOK, SITE_REP)
 }
 
 func fileExists(filename string) bool {

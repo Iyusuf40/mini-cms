@@ -59,6 +59,9 @@ const collapsibleFieldElementTypeAction = [
 ]
 
 var STEP  = 2
+var SITE_REP = null
+
+var baseUrl = "http://localhost:3000"
 
 function makeElementDescriptionCollapsible(nodeId) {
     let collapsibleContainer = document.createElement("div")
@@ -159,6 +162,23 @@ window.onload = function () {
     document.querySelectorAll(".__node").forEach( nodeEl => {
         addEventListenerToNode(nodeEl)
         appendElementDescriptionCollapsible(nodeEl)
+    })
+    setSiteRep()
+}
+
+async function setSiteRep() {
+    fetch(baseUrl + "/siterep")
+    .then(response => {
+        if (response.status !== 200){
+            alert("no project found")
+        }
+        return response.json()
+    })
+    .then(siterep => {
+        SITE_REP = siterep
+    })
+    .catch(err => {
+        alert("no project found")
     })
 }
 
@@ -300,3 +320,55 @@ function setStep(nodeId, value) {
         STEP = numValue
     }
 }
+
+
+const postOpt = {
+    method: "POST",
+    mode: "cors",
+    cache: "no-cache",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    // body: REMEMBER TO USE SPREAD SYNTAX TO INCLUDE BODY
+}
+  
+const putOpt = {
+    method: "PUT",
+    mode: "cors",
+    cache: "no-cache",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    // body: REMEMBER TO USE SPREAD SYNTAX TO INCLUDE BODY
+}
+
+async function postData(url, data) {
+    const postOptLocal = { ...postOpt, body: data }
+    return fetch(url, postOptLocal)
+      .then(data => {
+        return data.json()
+      })
+      .then((data) => {
+        return data
+      })
+      .catch((err) => {
+        console.error(err)
+        return null
+      })
+}
+
+async function putData(url, data) {
+    const putOptLocal = { ...putOpt, body: data }
+    return fetch(url, putOptLocal)
+      .then(data => {
+        return data.json()
+      })
+      .then((data) => {
+        return data
+      })
+      .catch((err) => {
+        console.error(err)
+        return null
+      })
+}
+  
