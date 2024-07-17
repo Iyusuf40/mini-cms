@@ -40,6 +40,7 @@ var htmlAttributesToSet = []string{
 
 // used to identify nodes and add collapsible editor to it
 var nodeClass = "__node"
+var htmlElementNodeId = "0"
 
 var EgSiteRep = map[string]any{
 	"title": "mini-cms",
@@ -350,7 +351,7 @@ func openHtml(title string) string {
 	// update favicon.ico path
 	return fmt.Sprintf(`
 <!DOCTYPE html>
-<html lang="en" class="%s">
+<html lang="en" class="%s" nodeId="%s">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.ico" />
@@ -358,7 +359,7 @@ func openHtml(title string) string {
 
 		<title>%s</title>
 	</head>`,
-		nodeClass, title)
+		nodeClass, htmlElementNodeId, title)
 }
 
 func closeHtml() string {

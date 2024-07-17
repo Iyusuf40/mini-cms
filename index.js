@@ -40,10 +40,10 @@ const collapsibleFieldElementTypeAction = [
     ["increase font size", "button", increaseFontSize],
     ["decrease font size", "button", decreaseFontSize],
     ["font color", "input:color", setFontColor],
-    ["font weight", "input:radio", setFontWeight],
+    ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
-    ["orientation", "input:radio", setOrientation],
-    ["position", "input:radio", setTextAlignment],
+    ["orientation", "input:radio:vertical:horizontal", setOrientation],
+    ["position", "input:radio:left:center:right", setTextAlignment],
     ["shift up", "button", shiftUp],
     ["shift down", "button", shiftDown],
     ["shift left", "button", shiftLeft],
@@ -54,32 +54,85 @@ const collapsibleFieldElementTypeAction = [
     ["paddingBottom", "input:text", setPaddingBottom],
     ["paddingLeft", "input:text", setPaddingLeft],
     ["paddingRight", "input:text", setPaddingRight],
-    ["edgeRounding", "input:text", setEdgeRounding]
+    ["edgeRounding", "input:text", setEdgeRounding],
+    ["step", "input:text", setStep]
 ]
+
+var STEP  = 2
 
 function makeElementDescriptionCollapsible(nodeId) {
     let collapsibleContainer = document.createElement("div")
+    collapsibleContainer.style.display = "flex"
+    collapsibleContainer.style.flexDirection =  "column"
+    collapsibleContainer.style.gap = "0.5rem"
     collapsibleContainer.classList.add("element--description--collapsible")
     collapsibleContainer.style.position = "absolute"
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
         let [text, elementType, action] = collapsibleFieldDesc
         let tag = elementType
-        let inputType = ""
         if (elementType.startsWith("input")) {
-            inputType = elementType.split(":")[1]
             tag = "input"
         }
-        let fieldEl = document.createElement(tag)
-        fieldEl.style.display = "block"
-        fieldEl.innerText = text
+
         if (tag === "input") {
-            fieldEl.setAttribute("type", inputType)
-            // on change
+            let inputType = elementType.split(":")[1]
+            if (inputType === "radio"){
+                let radioContainer = document.createElement("div")
+                radioContainer.style.display = "flex"
+                radioContainer.style.gap = "0.5rem"
+                let subheading = document.createElement("div")
+                subheading.innerText = `${text}:`
+                radioContainer.appendChild(subheading)
+                elementType.split(":").splice(2).forEach(radioOption => {
+                    let fieldEl = document.createElement(tag)
+                    fieldEl.setAttribute("type", inputType)
+                    fieldEl.setAttribute("name", text)
+                    fieldEl.setAttribute("id", radioOption)
+                    let label = document.createElement('label')
+                    label.innerText = radioOption
+                    label.setAttribute("for", radioOption)
+                    radioContainer.appendChild(label)
+                    radioContainer.appendChild(fieldEl)
+                    // on input
+                    fieldEl.oninput = (e) => {
+                        if (e.target.checked) {
+                            action(nodeId, STEP)
+                        }
+                    }
+                })
+                collapsibleContainer.appendChild(radioContainer)
+            } else {
+                let fieldContainer = document.createElement("div")
+                fieldContainer.style.display = "flex"
+                fieldContainer.style.gap = "1rem"
+                let subheading = document.createElement("div")
+                subheading.innerText = `${text}:`
+                fieldContainer.appendChild(subheading)
+                let fieldEl = document.createElement(tag)
+                fieldEl.style.display = "block"
+                fieldEl.setAttribute("type", inputType)
+                fieldEl.setAttribute("placeholder", text)
+                fieldContainer.appendChild(fieldEl)
+                collapsibleContainer.appendChild(fieldContainer)
+                // on input
+                fieldEl.oninput = (e) => {
+                    action(nodeId, e.target.value)
+                }
+            }
+
         } else {
+            let fieldEl = document.createElement(tag)
+            fieldEl.style.display = "block"
+            fieldEl.innerText = text
+
+            collapsibleContainer.appendChild(fieldEl)
             // on click
+
+            fieldEl.onclick = () => {
+                action(nodeId, STEP)
+            }
         }
-        collapsibleContainer.appendChild(fieldEl)
     }
 
     return collapsibleContainer
@@ -109,100 +162,141 @@ window.onload = function () {
     })
 }
 
-function addChild(nodeId) {
+function getNodeByNodeId(nodeId) {
+    const nodes = document.querySelectorAll(".__node")
+    for (let i = 0; i < nodes.length; i++) {
+        let node = nodes[i]
+        if (node.getAttribute("nodeId") === nodeId) return node
+    }
+    return null
+}
+
+function updateSiteRep(nodeId, field, value) {
 
 }
 
-function addNodeBefore(nodeId) {
+function addChild(nodeId, value) {
+
+}
+
+function addNodeBefore(nodeId, value) {
     // pull up form to enter node details
 }
 
-function addNodeAfter(nodeId) {
+function addNodeAfter(nodeId, value) {
 
 }
 
-function addHeading(nodeId) {
+function addHeading(nodeId, value) {
     // pull up form to enter heading details
 }
 
-function addSubHeading(nodeId) {
+function addSubHeading(nodeId, value) {
 
 }
 
-function deleteNode(nodeI) {
+function deleteNode(nodeI, value) {
 
 }
 
-function increaseFontSize(nodeId) {
+function increaseFontSize(nodeId, STEP) {
+    let nodeEl = getNodeByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevFontSize = getFontSize(nodeEl)
+    let updatedValue = Number(STEP) + prevFontSize
+    nodeEl.style.fontSize = `${updatedValue}px`
+    updateSiteRep(nodeId, "fontSize", `${updatedValue}`)
+}
+
+function getFontSize(el) {
+    let fontSize = window.getComputedStyle(el, null).getPropertyValue('font-size')
+    return parseFloat(fontSize)
+}
+
+function decreaseFontSize(nodeId, value) {
+    let nodeEl = getNodeByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevFontSize = getFontSize(nodeEl)
+    let updatedValue = prevFontSize - Number(STEP)
+    nodeEl.style.fontSize = `${updatedValue}px`
+    updateSiteRep(nodeId, "fontSize", `${updatedValue}`)
+}
+
+function setFontColor(nodeId, value) {
 
 }
 
-function decreaseFontSize(nodeId) {
+function setFontWeight(nodeId, value) {
 
 }
 
-function setFontColor(nodeId) {
+function setBackgroundColor(nodeId, value) {
+    let nodeEL = getNodeByNodeId(nodeId)
+
+    if (!nodeEL) return
+    nodeEL.style.backgroundColor = value
+    updateSiteRep(nodeId, "backgroundColor", value)
+}
+
+function setOrientation(nodeId, value) {
 
 }
 
-function setFontWeight(nodeId) {
+function setTextAlignment(nodeId, value) {
 
 }
 
-function setBackgroundColor(nodeId) {
-
-}
-
-function setOrientation(nodeId) {
-
-}
-
-function setTextAlignment(nodeId) {
-
-}
-
-function shiftUp(nodeId){
+function shiftUp(nodeId, value){
     // mess with shiftBottom
     // shiftBottom maps to backend siterep
 }
 
-function shiftDown(nodeId){
+function shiftDown(nodeId, value){
     // mess with shiftTop
     // shiftTop maps to backend siterep
 }
 
-function shiftLeft(nodeId) {
+function shiftLeft(nodeId, value) {
     // mess with shiftRight
 }
 
-function shiftRight(nodeId) {
+function shiftRight(nodeId, value) {
     // mess with shiftLeft
 }
 
-function setMargin(nodeId) {
+function setMargin(nodeId, value) {
 
 }
 
-function setPadding(nodeId) {
+function setPadding(nodeId, value) {
 
 }
 
-function setPaddingTop(nodeId) {
+function setPaddingTop(nodeId, value) {
 
 }
 
-function setPaddingBottom(nodeId) {
+function setPaddingBottom(nodeId, value) {
 
 }
 
-function setPaddingLeft(nodeId) {
+function setPaddingLeft(nodeId, value) {
 
 }
 
-function setPaddingRight(nodeId) {
+function setPaddingRight(nodeId, value) {
 
 }
 
-function setEdgeRounding(nodeId) {
+function setEdgeRounding(nodeId, value) {
     
+}
+
+function setStep(nodeId, value) {
+    let numValue = Number(value)
+    if (numValue || numValue === 0) {
+        STEP = numValue
+    }
 }
