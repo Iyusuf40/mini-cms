@@ -1,0 +1,33 @@
+.toggle-button {
+    background-color: #4CAF50;
+    border: none;
+    color: white;
+    padding: 10px 20px;
+    text-align: center;
+    text-decoration: none;
+    display: block;
+    width: 20px;
+    font-size: 16px;
+    margin: 4px 2px;
+    cursor: pointer;
+    border-radius: 12px;
+    transition: background-color 0.3s;
+    position: absolute;
+    right: 5px;
+}
+
+.toggle-button:hover {
+    background-color: #45a049;
+}
+
+.toggle-content {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.2s ease-out, padding 0.2s ease-out;
+}
+
+.toggle-content.open {
+    max-height: 1000px; /* a large number to ensure it can expand */
+    padding: 5px;
+    transition: max-height 0.2s ease-in, padding 0.2s ease-in;
+}

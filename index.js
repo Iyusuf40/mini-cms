@@ -64,12 +64,26 @@ var SITE_REP = null
 var baseUrl = "http://localhost:3000"
 
 function makeElementDescriptionCollapsible(nodeId) {
+    let collapsibleContainersContainer = document.createElement("div")
+    collapsibleContainersContainer.style.position = "relative"
     let collapsibleContainer = document.createElement("div")
+    collapsibleContainersContainer.appendChild(collapsibleContainer)
     collapsibleContainer.style.display = "flex"
     collapsibleContainer.style.flexDirection =  "column"
+    collapsibleContainer.style.right = "5px"
     collapsibleContainer.style.gap = "0.5rem"
     collapsibleContainer.classList.add("element--description--collapsible")
     collapsibleContainer.style.position = "absolute"
+
+    let toggleBtn = document.createElement("button")
+    toggleBtn.classList.add("toggle-button")
+    toggleBtn.textContent = "+"
+    
+    addEventListenerToToggleBtn(toggleBtn, collapsibleContainer)
+
+    collapsibleContainer.classList.add("toggle-content")
+
+    collapsibleContainersContainer.appendChild(toggleBtn)
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
         let [text, elementType, action] = collapsibleFieldDesc
@@ -138,13 +152,25 @@ function makeElementDescriptionCollapsible(nodeId) {
         }
     }
 
-    return collapsibleContainer
+    return collapsibleContainersContainer
 }
 
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
     let collapsible = makeElementDescriptionCollapsible(nodeId || "")
     nodeEl.appendChild(collapsible)
+}
+
+function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
+    toggleBtn.addEventListener('click', () => {
+        if (toggleContent.classList.contains('open')) {
+            toggleContent.classList.remove('open');
+            toggleBtn.textContent = '+';
+        } else {
+            toggleContent.classList.add('open');
+            toggleBtn.textContent = '-';
+        }
+    });
 }
 
 function makeNode(tag) {
@@ -216,7 +242,7 @@ function addSubHeading(nodeId, value) {
 }
 
 function deleteNode(nodeI, value) {
-
+    
 }
 
 function increaseFontSize(nodeId, STEP) {

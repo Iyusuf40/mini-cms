@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"net/http"
 	"os"
+	"strings"
 
 	"github.com/Iyusuf40/goBackendUtils"
 
@@ -50,11 +51,11 @@ func serveRoot(c echo.Context) error {
 	// index.js should add to the html element a collapsible
 	// to add nodes
 
-	err := BuildHtml("/", EgSiteRep)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, err.Error())
-		return err
-	}
+	// err := BuildHtml("/", EgSiteRep)
+	// if err != nil {
+	// 	fmt.Fprintln(os.Stderr, err.Error())
+	// 	return err
+	// }
 	return c.File("index.html")
 }
 
@@ -67,7 +68,7 @@ func servePath(c echo.Context) error {
 		return err
 	}
 
-	if path == "index.js" {
+	if strings.Contains(path, ".") {
 		return c.File(dirWIthPath)
 	}
 

@@ -28,19 +28,22 @@ def directory_changed():
             return True
         time.sleep(2)
 
-if __name__ == "__main__":
-    if len(sys.argv) < 2:
-        print("Usage: ./run_program.py <prog> <args...>")
-        sys.exit(1)
+def run_program():
     prog = sys.argv[1:]
 
     while True:
-        process = subprocess.Popen(prog, text=True)
+        subprocess.Popen(prog, text=True)
         print("--- new process ---")
         while True:
             if directory_changed():
                 os.system(f"kill $(netstat -lpdn | grep 3000 | tr -s ' ' | cut -d' ' -f7 | cut -d'/' -f1)")
-                process.kill()
-                print(f"--- killed pid-{process.pid} ---")
                 break
+
+if __name__ == "__main__":
+    if len(sys.argv) < 2:
+        print("Usage: ./run_program.py <prog> <args...>")
+        sys.exit(1)
+    
+    run_program()
+
 

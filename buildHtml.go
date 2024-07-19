@@ -366,6 +366,7 @@ func openHtml(title string) string {
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.ico" />
+		<link rel="stylesheet" href="styles.css">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 		<title>%s</title>
