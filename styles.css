@@ -1,3 +1,7 @@
+.__node {
+    position: relative;
+}
+
 .toggle-button {
     background-color: #4CAF50;
     border: none;

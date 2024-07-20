@@ -43,6 +43,7 @@ const collapsibleFieldElementTypeAction = [
     ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
     ["orientation", "input:radio:vertical:horizontal", setOrientation],
+    ["gap", "input:text", setGap],
     ["position", "input:radio:left:center:right", setTextAlignment],
     ["shift up", "button", shiftUp],
     ["shift down", "button", shiftDown],
@@ -55,7 +56,9 @@ const collapsibleFieldElementTypeAction = [
     ["paddingLeft", "input:text", setPaddingLeft],
     ["paddingRight", "input:text", setPaddingRight],
     ["edgeRounding", "input:text", setEdgeRounding],
-    ["step", "input:text", setStep]
+    ["extendCss", "input:text", setExtendCss],
+    ["extendHtml", "input:text", setExtendHtml],
+    ["step", "input:text", setStep],
 ]
 
 var STEP  = 2
@@ -66,6 +69,7 @@ var baseUrl = "http://localhost:3000"
 function makeElementDescriptionCollapsible(nodeId) {
     let collapsibleContainersContainer = document.createElement("div")
     collapsibleContainersContainer.style.position = "relative"
+    collapsibleContainersContainer.style.width = "100%" 
     let collapsibleContainer = document.createElement("div")
     collapsibleContainersContainer.appendChild(collapsibleContainer)
     collapsibleContainer.style.display = "flex"
@@ -114,7 +118,7 @@ function makeElementDescriptionCollapsible(nodeId) {
                     // on input
                     fieldEl.oninput = (e) => {
                         if (e.target.checked) {
-                            action(nodeId, STEP)
+                            action(nodeId, e.target.id)
                         }
                     }
                 })
@@ -208,7 +212,7 @@ async function setSiteRep() {
     })
 }
 
-function getNodeByNodeId(nodeId) {
+function getnodeElementByNodeId(nodeId) {
     const nodes = document.querySelectorAll(".__node")
     for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
@@ -217,12 +221,52 @@ function getNodeByNodeId(nodeId) {
     return null
 }
 
-function updateSiteRep(nodeId, field, value) {
+function getSiteRepNodeByNodeId(nodeId) {
+    if (!SITE_REP) {
+        alert("getSiteRepNodeByNodeId: SITE_REP should not be null")
+        throw new Error("getSiteRepNodeByNodeId: SITE_REP should not be null")
+    }
 
+    // check if root html is the required node
+    if (SITE_REP.nodeId === nodeId) return SITE_REP
+
+    let relevantNode = SITE_REP[window.location.pathname]
+    return recursivelyFindNodeWithId(relevantNode, nodeId)
+}
+
+function recursivelyFindNodeWithId(root, nodeId) {
+    if (!root) return null
+    if (root.nodeId === nodeId) return root
+    if (root.children){
+        for (const node of Object.values(root.children)) {
+            if (node.nodeId === nodeId) return node
+            if (node.children) {
+                let res = recursivelyFindNodeWithId(node, nodeId)
+                if (res) return res
+            }
+        }
+    }
+    return null
+}
+
+function updateSiteRep(nodeId, field, value) {
+    let siteRepNode = getSiteRepNodeByNodeId(nodeId)
+    if (!siteRepNode) {
+        throw new Error(`updateSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
+    }
+
+    let path = window.location.pathname
+
+    if (!siteRepNode[path] && path === "/") 
+        siteRepNode[path] = {}
+    else if (!siteRepNode[path])
+        throw new Error(`updateSiteRep: node at path ${path} does not exist`)
+    
+    siteRepNode[path][field] = value
 }
 
 function addChild(nodeId, value) {
-
+    
 }
 
 function addNodeBefore(nodeId, value) {
@@ -235,6 +279,7 @@ function addNodeAfter(nodeId, value) {
 
 function addHeading(nodeId, value) {
     // pull up form to enter heading details
+    // add child
 }
 
 function addSubHeading(nodeId, value) {
@@ -246,7 +291,7 @@ function deleteNode(nodeI, value) {
 }
 
 function increaseFontSize(nodeId, STEP) {
-    let nodeEl = getNodeByNodeId(nodeId)
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
     let prevFontSize = getFontSize(nodeEl)
@@ -261,7 +306,7 @@ function getFontSize(el) {
 }
 
 function decreaseFontSize(nodeId, value) {
-    let nodeEl = getNodeByNodeId(nodeId)
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
     let prevFontSize = getFontSize(nodeEl)
@@ -271,73 +316,213 @@ function decreaseFontSize(nodeId, value) {
 }
 
 function setFontColor(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.color = value
+    updateSiteRep(nodeId, "fontColor", value)
 }
 
 function setFontWeight(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.fontWeight = value
+    updateSiteRep(nodeId, "fontWeight", value)
 }
 
 function setBackgroundColor(nodeId, value) {
-    let nodeEL = getNodeByNodeId(nodeId)
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
-    if (!nodeEL) return
-    nodeEL.style.backgroundColor = value
+    if (!nodeEl) return
+    nodeEl.style.backgroundColor = value
     updateSiteRep(nodeId, "backgroundColor", value)
 }
 
 function setOrientation(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.display = "flex"
+    nodeEl.style.gap = "1rem"
+    nodeEl.style.flexDirection = value === "horizontal" ? "row" : "column"
+    updateSiteRep(nodeId, value, true)
+
+    let opposite = value === "horizontal" ? "vertical" : "horizontal"
+    updateSiteRep(nodeId, opposite, false)
+}
+
+function setGap(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    nodeEl.style.gap = `${value}px`
+    updateSiteRep(nodeId, "gap", value)
 }
 
 function setTextAlignment(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+
+    let possibleValues = ["left", "center", "right"]
+    possibleValues.forEach(val => {
+        if (val === value) {
+            nodeEl.style.textAlign = val
+            updateSiteRep(nodeId, val, true)
+        } else {
+            updateSiteRep(nodeId, val, false)
+        }
+    })
 }
 
 function shiftUp(nodeId, value){
-    // mess with shiftBottom
-    // shiftBottom maps to backend siterep
+    // mess with shiftTop only
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevTopString = window.getComputedStyle(nodeEl, null).getPropertyValue("top")
+    let prevTop = prevTopString.slice(0, prevTopString.indexOf("p"))
+    let updatedValue = `${Number(prevTop) - Number(STEP)}`
+    nodeEl.style.top = `${updatedValue}px`
+    updateSiteRep(nodeId, "shiftTop", updatedValue)
 }
 
 function shiftDown(nodeId, value){
-    // mess with shiftTop
-    // shiftTop maps to backend siterep
+    // mess with shiftTop only
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevTopString = window.getComputedStyle(nodeEl, null).getPropertyValue("top")
+    let prevTop = prevTopString.slice(0, prevTopString.indexOf("p"))    
+    let updatedValue = `${Number(prevTop) + Number(STEP)}`
+    nodeEl.style.top = `${updatedValue}px`
+    updateSiteRep(nodeId, "shiftTop", updatedValue)
 }
 
 function shiftLeft(nodeId, value) {
-    // mess with shiftRight
+    // mess with shiftLeft
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevLeftString = window.getComputedStyle(nodeEl, null).getPropertyValue("left")
+    let prevLeft = prevLeftString.slice(0, prevLeftString.indexOf("p"))
+    let updatedValue = `${Number(prevLeft) - Number(STEP)}`
+    nodeEl.style.left = `${updatedValue}px`
+    updateSiteRep(nodeId, "shiftLeft", updatedValue)
 }
 
 function shiftRight(nodeId, value) {
     // mess with shiftLeft
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevLeftString = window.getComputedStyle(nodeEl, null).getPropertyValue("left")
+    let prevLeft = prevLeftString.slice(0, prevLeftString.indexOf("p"))
+    let updatedValue = `${Number(prevLeft) + Number(STEP)}`
+    nodeEl.style.left = `${updatedValue}px`
+    updateSiteRep(nodeId, "shiftLeft", updatedValue)
 }
 
 function setMargin(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.margin = `${value}px`
+    updateSiteRep(nodeId, "margin", value)
 }
 
 function setPadding(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.padding = `${value}px`
+    updateSiteRep(nodeId, "padding", value)
 }
 
 function setPaddingTop(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.paddingTop = `${value}px`
+    updateSiteRep(nodeId, "paddingTop", value)
 }
 
 function setPaddingBottom(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.paddingBottom = `${value}px`
+    updateSiteRep(nodeId, "paddingBottom", value)
 }
 
 function setPaddingLeft(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.paddingLeft = `${value}px`
+    updateSiteRep(nodeId, "paddingLeft", value)
 }
 
 function setPaddingRight(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
 
+    if (!nodeEl) return
+    nodeEl.style.paddingRight = `${value}px`
+    updateSiteRep(nodeId, "paddingRight", value)
 }
 
 function setEdgeRounding(nodeId, value) {
-    
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    nodeEl.style.borderRadius = `${value}px`
+    updateSiteRep(nodeId, "edgeRounding", value)
+}
+
+function setExtendCss(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let startIndex = 0
+    let endIndex = 0
+    if (value[value.length - 1] !== ";") return
+
+    for (;endIndex < value.length; endIndex++) {
+        if (value[endIndex] === ";") {
+            let currentCssDescription = value.slice(startIndex, endIndex)
+            let [cssProp, cssVal] = currentCssDescription.split(":")
+            if (cssProp.includes("-")) {
+                cssProp = convertToCamelCase(cssProp).trim()
+            }
+            console.log([cssProp, cssVal])
+            nodeEl.style[cssProp] = cssVal
+            startIndex = endIndex + 1
+        }
+    }
+    updateSiteRep(nodeId, "extendedStyle", value)
+}
+
+function convertToCamelCase(separatedByHyphen) {
+
+    function titleCase(section){
+        return section[0].toUpperCase() + section.slice(1).toLowerCase();
+    }
+
+    return separatedByHyphen.split("-").map((section, index) => {
+        if (index == 0) return section
+        return titleCase(section)
+    }).join("")
+}
+
+function setExtendHtml(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    if (!value.endsWith("::done")) return
+    value = value.replace("::done", "")
+    nodeEl.insertAdjacentHTML('beforeend', value);
+    updateSiteRep(nodeId, "extendedHtml", value)
 }
 
 function setStep(nodeId, value) {
@@ -347,6 +532,8 @@ function setStep(nodeId, value) {
     }
 }
 
+
+// utility function starts from here
 
 const postOpt = {
     method: "POST",
@@ -397,4 +584,3 @@ async function putData(url, data) {
         return null
       })
 }
-  

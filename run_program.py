@@ -29,15 +29,18 @@ def directory_changed():
         time.sleep(2)
 
 def run_program():
-    prog = sys.argv[1:]
+    try:
+        prog = sys.argv[1:]
 
-    while True:
-        subprocess.Popen(prog, text=True)
-        print("--- new process ---")
         while True:
-            if directory_changed():
-                os.system(f"kill $(netstat -lpdn | grep 3000 | tr -s ' ' | cut -d' ' -f7 | cut -d'/' -f1)")
-                break
+            subprocess.Popen(prog, text=True)
+            print("--- new process ---")
+            while True:
+                if directory_changed():
+                    os.system(f"kill $(netstat -lpdn | grep 3000 | tr -s ' ' | cut -d' ' -f7 | cut -d'/' -f1)")
+                    break
+    except KeyboardInterrupt:
+        print("\nprogram runner terminated")
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:

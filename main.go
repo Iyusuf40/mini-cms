@@ -51,11 +51,15 @@ func serveRoot(c echo.Context) error {
 	// index.js should add to the html element a collapsible
 	// to add nodes
 
-	// err := BuildHtml("/", EgSiteRep)
-	// if err != nil {
-	// 	fmt.Fprintln(os.Stderr, err.Error())
-	// 	return err
-	// }
+	if fileExists("./index.html") {
+		return c.File("index.html")
+	}
+
+	err := BuildHtml("/", EgSiteRep)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, err.Error())
+		return err
+	}
 	return c.File("index.html")
 }
 
@@ -104,7 +108,7 @@ func updatePath(c echo.Context) error {
 }
 
 func getSiteRep(c echo.Context) error {
-	return c.JSON(http.StatusOK, SITE_REP)
+	return c.JSON(http.StatusOK, EgSiteRep)
 }
 
 func fileExists(filename string) bool {

@@ -5,6 +5,7 @@ import (
 	"os"
 	"path/filepath"
 	"sort"
+	"strconv"
 )
 
 var stylePropsAndItsCss = [][2]string{
@@ -15,6 +16,7 @@ var stylePropsAndItsCss = [][2]string{
 	{"backgroundColor", "background-color"},
 	{"horizontal", "display"},
 	{"vertical", "display"},
+	{"gap", "gap"},
 	{"left", "text-align"},
 	{"center", "text-align"},
 	{"right", "text-align"},
@@ -95,7 +97,7 @@ var htmlElementNodeId = "0"
 // 									"nodeId":          "timestamp_4",
 // 									"parentNodeId":    "timestamp_2",
 // 									"type":            "text",
-// 									"url":             "http://test.com",
+// 									"url":             "http://not-test.com",
 // 									"text":            "nested 2",
 // 									"fontColor":       "cyan",
 // 									"width":           "20",
@@ -137,13 +139,9 @@ var htmlElementNodeId = "0"
 // }
 
 var EgSiteRep = map[string]any{
-	"title": "mini-cms",
-	"children": map[string]any{
-		"0": map[string]any{
-			"nodeId": "timestamp_0",
-			"text":   "hello",
-		},
-	},
+	"title":  "mini-cms",
+	"tag":    "body",
+	"nodeId": "0",
 }
 
 func BuildHtml(path string, siteRep map[string]any) error {
@@ -154,8 +152,14 @@ func BuildHtml(path string, siteRep map[string]any) error {
 	title, _ := siteRep["title"].(string)
 
 	html := openHtml(title)
-	html = fmt.Sprintf("%s\n%s", html, convertNodeToHtml(siteRep, "body"))
-	html = fmt.Sprintf("%s\n%s", html, closeHtml())
+
+	html = fmt.Sprintf("%s\n%s\n", html, buildHeader(siteRep))
+
+	html = fmt.Sprintf("%s\n%s\n", html, buildPathHtml(siteRep, path))
+
+	html = fmt.Sprintf("%s\n%s\n", html, buildFooter(siteRep))
+
+	html = fmt.Sprintf("%s\n%s\n", html, closeHtml())
 
 	path, err = getAbsolutePathRelativeToCWD(path)
 
@@ -205,13 +209,41 @@ func writeHtmlToPath(html, path string) error {
 	return nil
 }
 
-func convertNodeToHtml(node map[string]any, tag string) string {
+func convertNodeToHtml(node map[string]any) string {
+	tag := ""
+	if nodeTag, ok := node["tag"].(string); ok {
+		tag = nodeTag
+	}
 	openTag := makeOpenTag(tag, node)
 	content := getContent(node)
 	children := getChildrenHtml(node)
 	extendedHtml := getExtendedHtml(node)
 	closeTag := makeCloseTag(tag)
 	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s", openTag, content, children, extendedHtml, closeTag)
+}
+
+func buildHeader(node map[string]any) string {
+	if header, ok := node["header"].(map[string]any); ok {
+		header["tag"] = "header"
+		return convertNodeToHtml(header)
+	}
+	return ""
+}
+
+func buildFooter(node map[string]any) string {
+	if header, ok := node["footer"].(map[string]any); ok {
+		header["tag"] = "footer"
+		return convertNodeToHtml(header)
+	}
+	return ""
+}
+
+func buildPathHtml(node map[string]any, path string) string {
+	if body, ok := node[path].(map[string]any); ok {
+		body["tag"] = "body"
+		return convertNodeToHtml(body)
+	}
+	return ""
 }
 
 func getContent(node map[string]any) string {
@@ -238,7 +270,7 @@ func getChildrenHtml(node map[string]any) string {
 			fmt.Fprintln(os.Stderr, "getChildrenHtml: childNode not map[string]any")
 			return ""
 		}
-		htmlContent = fmt.Sprintf("%s\n%s", htmlContent, convertNodeToHtml(childNode, ""))
+		htmlContent = fmt.Sprintf("%s\n%s", htmlContent, convertNodeToHtml(childNode))
 	}
 
 	return htmlContent
@@ -297,12 +329,12 @@ func getInlineStyle(node map[string]any) string {
 		if value, ok := node[styleProp].(string); ok {
 			switch styleProp {
 			case "width", "height":
-				stylesAndValues = fmt.Sprintf(`%s min-%s: %spx;`, stylesAndValues, itsCss, value)
+				stylesAndValues = fmt.Sprintf(`%s min-%s: %spx;`, stylesAndValues, itsCss, addPxIfNotSet(value))
 				stylesAndValues = fmt.Sprintf(`%s %s: fit-content;`, stylesAndValues, itsCss)
 			case "shiftTop", "shiftBottom", "shiftRight", "shiftLeft",
 				"paddingTop", "paddingBottom", "paddingRight", "paddingLeft",
-				"edgeRounding", "padding", "margin":
-				stylesAndValues = fmt.Sprintf(`%s %s: %spx;`, stylesAndValues, itsCss, value)
+				"edgeRounding", "padding", "margin", "gap":
+				stylesAndValues = fmt.Sprintf(`%s %s: %spx;`, stylesAndValues, itsCss, addPxIfNotSet(value))
 			default:
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, value)
 			}
@@ -338,6 +370,14 @@ func getInlineStyle(node map[string]any) string {
 	return style
 }
 
+func addPxIfNotSet(cssVal string) string {
+	_, err := strconv.Atoi(cssVal)
+	if err != nil {
+		return cssVal
+	}
+	return fmt.Sprintf("%spx", cssVal)
+}
+
 func getAttributes(node map[string]any) string {
 	attr := ``
 
@@ -362,7 +402,7 @@ func openHtml(title string) string {
 	// update favicon.ico path
 	return fmt.Sprintf(`
 <!DOCTYPE html>
-<html lang="en" class="%s" nodeId="%s">
+<html lang="en">
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.ico" />
@@ -370,10 +410,11 @@ func openHtml(title string) string {
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 		<title>%s</title>
-	</head>`,
-		nodeClass, htmlElementNodeId, title)
+	</head>
+	<body nodeId="%s" class="%s">`,
+		title, htmlElementNodeId, nodeClass)
 }
 
 func closeHtml() string {
-	return "<script src=\"index.js\"></script>\n</html>"
+	return "\t</body>\n<script src=\"index.js\"></script>\n</html>"
 }
