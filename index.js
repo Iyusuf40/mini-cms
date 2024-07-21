@@ -31,6 +31,7 @@
 //     - margin
 
 const collapsibleFieldElementTypeAction = [
+    ["content", "textarea", setContent],
     ["add child", "button", addChild],
     ["add node before", "button", addNodeBefore],
     ["add node after", "button", addNodeAfter],
@@ -39,6 +40,10 @@ const collapsibleFieldElementTypeAction = [
     ["delete node", "button", deleteNode],
     ["increase font size", "button", increaseFontSize],
     ["decrease font size", "button", decreaseFontSize],
+    ["increase width", "button", increaseWidth],
+    ["decrease width", "button", decreaseWidth],
+    ["increase height", "button", increaseHeight],
+    ["decrease height", "button", decreaseHeight],
     ["font color", "input:color", setFontColor],
     ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
@@ -142,6 +147,16 @@ function makeElementDescriptionCollapsible(nodeId) {
                 }
             }
 
+        } else if (tag === "textarea") {
+            let fieldEl = document.createElement(tag)
+            fieldEl.style.display = "block"
+            fieldEl.placeholder = "text content"
+
+            collapsibleContainer.appendChild(fieldEl)
+
+            fieldEl.oninput = (e) => {
+                action(nodeId, e.target.value)
+            }
         } else {
             let fieldEl = document.createElement(tag)
             fieldEl.style.display = "block"
@@ -227,9 +242,6 @@ function getSiteRepNodeByNodeId(nodeId) {
         throw new Error("getSiteRepNodeByNodeId: SITE_REP should not be null")
     }
 
-    // check if root html is the required node
-    if (SITE_REP.nodeId === nodeId) return SITE_REP
-
     let relevantNode = SITE_REP[window.location.pathname]
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
@@ -255,18 +267,130 @@ function updateSiteRep(nodeId, field, value) {
         throw new Error(`updateSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
     }
 
-    let path = window.location.pathname
+    siteRepNode[field] = value
+}
 
-    if (!siteRepNode[path] && path === "/") 
-        siteRepNode[path] = {}
-    else if (!siteRepNode[path])
-        throw new Error(`updateSiteRep: node at path ${path} does not exist`)
-    
-    siteRepNode[path][field] = value
+function setContent(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    nodeEl.innerText = value
+    updateSiteRep(nodeId, "text", value)
+    let collapsible = makeElementDescriptionCollapsible(nodeId)
+    nodeEl.appendChild(collapsible)
+    Array.from(collapsible.children).forEach(child => {
+        if (child.textContent === "+") {
+            child.click()
+            Array.from(collapsible.children).forEach(child => {
+                let contentInput = child.querySelector("textarea")
+                if (contentInput) {
+                    contentInput.focus()
+                    contentInput.value = value
+                }
+            })
+        }
+    })
 }
 
 function addChild(nodeId, value) {
-    
+    createNodeElCreationForm(nodeId)
+}
+
+function createNodeElCreationForm(nodeId) {
+    let body = document.querySelector("body")
+    let nodeElCreationForm = document.createElement("div")
+    nodeElCreationForm.style.position = "absolute"
+    nodeElCreationForm.style.display = "flex"
+    nodeElCreationForm.style.flexDirection = "column"
+    nodeElCreationForm.style.gap = "1rem"
+    nodeElCreationForm.style.top = "5rem"
+    nodeElCreationForm.style.padding = "2rem"
+    nodeElCreationForm.style.border = "1px solid"
+
+    let label = document.createElement("label")
+    label.innerText = "type:"
+    nodeElCreationForm.appendChild(label)
+
+    let typeSelectorEl = document.createElement("select")
+    typeSelectorEl.style.display = "block"
+    typeSelectorEl.setAttribute("id", "nodeTypeSelector")
+    let typeOptions = [
+        {type: "container", value: "div"},
+        {type: "paragraph", value: "p"},
+        {type: "heading", value: "h1"},
+        {type: "subheading", value: "h3"},
+        // {type: "image", value: "img"},
+    ]
+
+    typeOptions.forEach(option => {
+        let optionEl = document.createElement('option');
+        optionEl.setAttribute('value', option.value);
+        optionEl.textContent = option.type;
+        typeSelectorEl.appendChild(optionEl);
+    });
+
+    nodeElCreationForm.appendChild(typeSelectorEl)
+
+    let textContent = document.createElement("textarea")
+    textContent.placeholder = "text content"
+    textContent.style.display = "block"
+
+    nodeElCreationForm.appendChild(textContent)
+
+    let cancelBtn = document.createElement("button")
+    cancelBtn.innerText = "cancel"
+    cancelBtn.onclick = () => nodeElCreationForm.remove()
+
+    let appendChildBtn = document.createElement("button")
+    appendChildBtn.innerText = "add"
+    appendChildBtn.onclick = () => {
+        appendContentToNodeEl(nodeId, typeSelectorEl.value, textContent.value)
+        nodeElCreationForm.remove()
+    }
+
+    nodeElCreationForm.appendChild(cancelBtn)
+    nodeElCreationForm.appendChild(appendChildBtn)
+
+    body.appendChild(nodeElCreationForm)
+    return nodeElCreationForm
+}
+
+function appendContentToNodeEl(nodeId, tag, text) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+    if (!nodeEl) {
+        alert(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
+        throw new Error(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
+    }
+
+    // update siterep
+    let newNode = {tag, text}
+    let newNodeId = Date.now().toString()
+    newNode.nodeId = newNodeId
+    addChildToSiteRep(nodeId, newNode)
+
+    // update ui
+    let childEl = document.createElement(tag)
+    childEl.innerText = text
+    childEl.classList.add("__node")
+    childEl.setAttribute("nodeId", newNodeId)
+    appendElementDescriptionCollapsible(childEl)
+    nodeEl.appendChild(childEl)  
+}
+
+function addChildToSiteRep(nodeId, child) {
+    let node = getSiteRepNodeByNodeId(nodeId)
+    if (!node) {
+        alert(`addChildToSiteRep: node with nodeId ${nodeId} not in site rep`)
+        throw new Error(`addChildToSiteRep: node with nodeId ${nodeId} not in site rep`)
+    }
+
+    if (!node.children) node.children = {}
+
+    if (!child.nodeId) {
+        alert(`addChildToSiteRep: child node has no id`)
+        throw new Error(`addChildToSiteRep: child node has no id`)
+    }
+    node.children[child.nodeId] = child
 }
 
 function addNodeBefore(nodeId, value) {
@@ -313,6 +437,48 @@ function decreaseFontSize(nodeId, value) {
     let updatedValue = prevFontSize - Number(STEP)
     nodeEl.style.fontSize = `${updatedValue}px`
     updateSiteRep(nodeId, "fontSize", `${updatedValue}`)
+}
+
+
+function increaseWidth(nodeId, STEP) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevWidth = nodeEl.offsetWidth
+    let updatedValue = Number(STEP) + prevWidth
+    nodeEl.style.width = `${updatedValue}px`
+    updateSiteRep(nodeId, "width", `${updatedValue}`)
+}
+
+function decreaseWidth(nodeId, STEP) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevWidth = nodeEl.offsetWidth
+    let updatedValue = prevWidth - Number(STEP)
+    console.table({prevWidth, updatedValue})
+    nodeEl.style.width = `${updatedValue}px`
+    updateSiteRep(nodeId, "width", `${updatedValue}`)
+}
+
+function increaseHeight(nodeId, STEP) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevHeight = nodeEl.offsetHeight
+    let updatedValue = Number(STEP) + prevHeight
+    nodeEl.style.height = `${updatedValue}px`
+    updateSiteRep(nodeId, "height", `${updatedValue}`)
+}
+
+function decreaseHeight(nodeId, STEP) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let prevHeight = nodeEl.offsetHeight
+    let updatedValue = prevHeight - Number(STEP)
+    nodeEl.style.height = `${updatedValue}px`
+    updateSiteRep(nodeId, "height", `${updatedValue}`)
 }
 
 function setFontColor(nodeId, value) {

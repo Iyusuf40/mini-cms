@@ -42,7 +42,7 @@ var htmlAttributesToSet = []string{
 
 // used to identify nodes and add collapsible editor to it
 var nodeClass = "__node"
-var htmlElementNodeId = "0"
+var bodyElementNodeId = "0"
 
 // var EgSiteRep = map[string]any{
 // 	"title": "mini-cms",
@@ -139,9 +139,11 @@ var htmlElementNodeId = "0"
 // }
 
 var EgSiteRep = map[string]any{
-	"title":  "mini-cms",
-	"tag":    "body",
-	"nodeId": "0",
+	"title": "mini-cms",
+	"/": map[string]any{
+		"nodeId": "0",
+		"tag":    "body",
+	},
 }
 
 func BuildHtml(path string, siteRep map[string]any) error {
@@ -406,13 +408,13 @@ func openHtml(title string) string {
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.ico" />
-		<link rel="stylesheet" href="styles.css">
+		<link rel="stylesheet" href="styles.css?33">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 		<title>%s</title>
 	</head>
 	<body nodeId="%s" class="%s">`,
-		title, htmlElementNodeId, nodeClass)
+		title, bodyElementNodeId, nodeClass)
 }
 
 func closeHtml() string {
