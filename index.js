@@ -1,35 +1,3 @@
-// - collapsible
-//     - add child
-//     - add node_before
-//     - add node_after
-//         - on click
-//         - present form with fields
-//             - type
-//             - content
-//             - image picker
-//             - ---- may include files in the future
-//     - add heading
-//     - add subheading
-//     - delete node
-//     - increase font size
-//     - decrease font size
-//     - font color
-//     - font weight - [thin, normal, bold]
-//     - background color
-//     - orientation - [vertical, horizontal]
-//     - position - [left, center, right]
-//     - shiftTop
-//     - shiftLeft
-//     - shiftBottom
-//     - shiftRight
-//     - padding
-//     - paddingTop
-//     - paddingLeft
-//     - paddingBottom
-//     - paddingRight
-//     - edgeRounding
-//     - margin
-
 const collapsibleFieldElementTypeAction = [
     ["content", "textarea", setContent],
     ["add child", "button", addChild],
@@ -209,6 +177,7 @@ window.onload = function () {
         appendElementDescriptionCollapsible(nodeEl)
     })
     setSiteRep()
+    addPublishSiteRepBtn()
 }
 
 async function setSiteRep() {
@@ -225,6 +194,19 @@ async function setSiteRep() {
     .catch(err => {
         alert("no project found")
     })
+}
+
+function addPublishSiteRepBtn() {
+    let htmlEl = document.querySelector("html")
+    let publishSiteBtn = document.createElement("button")
+    publishSiteBtn.innerText = "publish"
+    publishSiteBtn.style.position = "fixed"
+    publishSiteBtn.style.bottom = "5px"
+    publishSiteBtn.style.right = "5px"
+
+    publishSiteBtn.onclick = () => commitSiteRep()
+
+    htmlEl.appendChild(publishSiteBtn)
 }
 
 function getnodeElementByNodeId(nodeId) {
@@ -721,8 +703,30 @@ const putOpt = {
     // body: REMEMBER TO USE SPREAD SYNTAX TO INCLUDE BODY
 }
 
+async function commitSiteRep() {
+    let path = window.location.pathname
+    if (!SITE_REP[path]) return
+    
+    // prevent each path from having root properties
+    let pathSiteRep = {}
+    // allow buildPathHtml at Backend
+    pathSiteRep[path] = SITE_REP[path]
+    pathSiteRep["path"] = path
+    pathSiteRep.title = SITE_REP.title
+    pathSiteRep.footer = SITE_REP.footer
+
+    // TO-DO check if changed so as not to traverse network
+
+    const url = baseUrl + "/"
+
+    let res = await putData(url, {data: pathSiteRep})
+    if (res.error) {
+        alert(res.error)
+    }
+}
+
 async function postData(url, data) {
-    const postOptLocal = { ...postOpt, body: data }
+    const postOptLocal = {...postOpt, body: JSON.stringify(data)}
     return fetch(url, postOptLocal)
       .then(data => {
         return data.json()
@@ -737,7 +741,7 @@ async function postData(url, data) {
 }
 
 async function putData(url, data) {
-    const putOptLocal = { ...putOpt, body: data }
+    const putOptLocal = {...putOpt, body: JSON.stringify(data)}
     return fetch(url, putOptLocal)
       .then(data => {
         return data.json()

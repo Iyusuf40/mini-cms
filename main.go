@@ -17,9 +17,11 @@ const PORT = "3000"
 var backendUtils = &goBackendUtils.Utils{}
 
 var SITE_REP = make(map[string]map[string]any)
+var siteRepStore, _ = backendUtils.GetDB_Engine("file", "siterep", "siterep")
 
 func main() {
 	wait := make(chan int)
+	siteRepStore.Save(DefaultSiteRep)
 
 	go func() {
 		ServeSite()
@@ -34,10 +36,16 @@ func ServeSite() {
 
 	e.GET("/", serveRoot)
 	e.GET("/:path", servePath)
+
 	e.POST("/", addPath)
 	e.POST("/:path", addPath)
+
 	e.PUT("/", updatePath)
 	e.PUT("/:", updatePath)
+
+	e.PUT("/header", updateHeader)
+
+	e.PUT("/footer", updateFooter)
 
 	e.GET("/siterep", getSiteRep)
 
@@ -55,7 +63,7 @@ func serveRoot(c echo.Context) error {
 		return c.File("index.html")
 	}
 
-	err := BuildHtml("/", EgSiteRep)
+	err := BuildHtml("/", getSiteRepFromStore())
 	if err != nil {
 		fmt.Fprintln(os.Stderr, err.Error())
 		return err
@@ -82,12 +90,19 @@ func servePath(c echo.Context) error {
 
 func addPath(c echo.Context) error {
 	body := backendUtils.GetBodyInMap(c)
-	path, ok := body["data"].(map[string]any)["path"].(string)
+	data, ok := body["data"].(map[string]any)
 
 	response := map[string]any{}
 
 	if !ok {
-		response["error"] = "Invalid path"
+		response["error"] = "data not in payload"
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	path, ok := data["path"].(string)
+
+	if !ok {
+		response["error"] = "invalid path"
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
@@ -102,13 +117,89 @@ func addPath(c echo.Context) error {
 }
 
 func updatePath(c echo.Context) error {
-	// if update is at header or footer recursively rebuild changed
-	// section to all nested paths
+
+	body := backendUtils.GetBodyInMap(c)
+	data, ok := body["data"].(map[string]any)
+
+	response := map[string]any{}
+
+	if !ok {
+		response["error"] = "data not in payload"
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	path, ok := data["path"].(string)
+
+	if !ok {
+		response["error"] = "invalid path"
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	err := BuildHtml(path, data)
+	delete(data, "path")
+	updateSiteRepInStore(path, data[path].(map[string]any))
+
+	if err != nil {
+		response["error"] = err.Error()
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	response["message"] = fmt.Sprintf("path: %s updated", path)
+
+	return c.JSON(http.StatusOK, response)
+}
+
+func updateHeader(c echo.Context) error {
+
+	return nil
+}
+
+func updateFooter(c echo.Context) error {
+
 	return nil
 }
 
 func getSiteRep(c echo.Context) error {
-	return c.JSON(http.StatusOK, EgSiteRep)
+	return c.JSON(http.StatusOK, getSiteRepFromStore())
+}
+
+func getSiteRepFromStore() map[string]any {
+	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
+	if len(updatedSiteRepList) == 1 {
+		return updatedSiteRepList[0]
+	}
+	updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
+	if len(updatedSiteRepList) == 1 {
+		return updatedSiteRepList[0]
+	}
+	panic("getSiteRepFromStore: no sitrep in db")
+}
+
+func updateSiteRepInStore(field string, value map[string]any) {
+	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
+	if len(updatedSiteRepList) != 1 {
+		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
+	}
+	if len(updatedSiteRepList) != 1 {
+		panic("updateSiteRepInStore: no siterep in db")
+	}
+	updatedSiteRep := updatedSiteRepList[0]
+	updatedSiteRep[field] = value
+	updatedSiteRep["updated"] = true
+	deletePreviousSiteRep()
+	siteRepStore.Save(updatedSiteRep)
+	siteRepStore.Commit()
+}
+
+func deletePreviousSiteRep() {
+	id := siteRepStore.GetIdByFieldAndValue("updated", true)
+	if id == "" {
+		id = siteRepStore.GetIdByFieldAndValue("title", "mini-cms")
+	}
+	if id == "" {
+		panic("deletePreviousSiteRep: no sitrep in db")
+	}
+	siteRepStore.Delete(id)
 }
 
 func fileExists(filename string) bool {
