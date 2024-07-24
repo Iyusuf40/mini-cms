@@ -95,8 +95,8 @@ function makeElementDescriptionCollapsible(nodeId) {
                     label.setAttribute("for", radioOption)
                     radioContainer.appendChild(label)
                     radioContainer.appendChild(fieldEl)
-                    // on input
                     fieldEl.oninput = (e) => {
+                        e.preventDefault()
                         if (e.target.checked) {
                             action(nodeId, e.target.id)
                         }
@@ -116,8 +116,10 @@ function makeElementDescriptionCollapsible(nodeId) {
                 fieldEl.setAttribute("placeholder", text)
                 fieldContainer.appendChild(fieldEl)
                 collapsibleContainer.appendChild(fieldContainer)
-                // on input
+                
+                fieldEl.onclick = (e) => e.preventDefault()
                 fieldEl.oninput = (e) => {
+                    e.preventDefault()
                     action(nodeId, e.target.value)
                 }
             }
@@ -129,7 +131,9 @@ function makeElementDescriptionCollapsible(nodeId) {
 
             collapsibleContainer.appendChild(fieldEl)
 
+            fieldEl.onclick = (e) => e.preventDefault()
             fieldEl.oninput = (e) => {
+                e.preventDefault()
                 action(nodeId, e.target.value)
             }
         } else {
@@ -140,7 +144,8 @@ function makeElementDescriptionCollapsible(nodeId) {
             collapsibleContainer.appendChild(fieldEl)
             // on click
 
-            fieldEl.onclick = () => {
+            fieldEl.onclick = (e) => {
+                e.preventDefault()
                 action(nodeId, STEP)
             }
         }
@@ -160,7 +165,8 @@ function appendElementDescriptionCollapsible(nodeEl) {
 }
 
 function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
-    toggleBtn.addEventListener('click', () => {
+    toggleBtn.addEventListener('click', (e) => {
+        e.preventDefault()
         if (toggleContent.classList.contains('open')) {
             toggleContent.classList.remove('open');
             toggleBtn.textContent = '+';
@@ -333,11 +339,12 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     {type: "paragraph", value: "p"},
     {type: "heading", value: "h1"},
     {type: "subheading", value: "h3"},
+    {type: "link", value: "a"},
     // {type: "image", value: "img"},
 ], newNodeId="", position=""}) {
     let body = document.querySelector("body")
     let nodeElCreationForm = document.createElement("div")
-    nodeElCreationForm.style.position = "absolute"
+    nodeElCreationForm.style.position = "fixed"
     nodeElCreationForm.style.display = "flex"
     nodeElCreationForm.style.flexDirection = "column"
     nodeElCreationForm.style.gap = "1rem"
@@ -365,17 +372,45 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     let textContent = document.createElement("textarea")
     textContent.placeholder = "text content"
     textContent.style.display = "block"
-
     nodeElCreationForm.appendChild(textContent)
+
+    let linkInput = document.createElement("input")
+    linkInput.placeholder = "url"
+    linkInput.style.display = "block"
+    nodeElCreationForm.appendChild(linkInput)
+    
+    function disableIrrelevantFields() {
+        if (typeSelectorEl.value === "a") {
+            textContent.disabled = true
+            linkInput.disabled = false
+        } else {
+            textContent.disabled = false
+            linkInput.disabled = true
+        }
+    }
+
+    disableIrrelevantFields()
+
+    typeSelectorEl.addEventListener('change', disableIrrelevantFields)
 
     let cancelBtn = document.createElement("button")
     cancelBtn.innerText = "cancel"
-    cancelBtn.onclick = () => nodeElCreationForm.remove()
+    cancelBtn.onclick = () => {
+        typeSelectorEl.removeEventListener('change', disableIrrelevantFields)
+        nodeElCreationForm.remove()
+    }
 
     let appendChildBtn = document.createElement("button")
     appendChildBtn.innerText = "add"
     appendChildBtn.onclick = () => {
-        appendContentToNodeEl(nodeId, typeSelectorEl.value, textContent.value, newNodeId, position)
+        appendContentToNodeEl(
+            nodeId, 
+            typeSelectorEl.value, 
+            typeSelectorEl.value === "a"? linkInput.value : textContent.value, 
+            newNodeId, 
+            position
+        )
+        typeSelectorEl.removeEventListener('change', disableIrrelevantFields)
         nodeElCreationForm.remove()
     }
 
@@ -400,8 +435,24 @@ function appendContentToNodeEl(nodeId, tag, text, newNodeId="", position="") {
 
     // update ui
     let childEl = document.createElement(tag)
-    childEl.innerText = text // to-do: use p tag for text?
+
+    if (tag === "a") {
+        newNode.href = text
+        newNode.text = "link"
+        childEl.setAttribute("href", text)
+        let p = document.createElement("p")
+        text = "link"
+        p.innerText = text
+        childEl.style.display = "block"
+        childEl.appendChild(p)
+    } else {
+        let p = document.createElement("p")
+        p.innerText = text
+        childEl.appendChild(p)
+    }
+
     childEl.classList.add("__node")
+
     childEl.setAttribute("nodeId", childNodeId)
     appendElementDescriptionCollapsible(childEl)
     switch (position) {
@@ -476,7 +527,7 @@ function getElementBeforeNewNodeId(nodeId, newNodeId) {
 }
 
 function sortStringList(list) {
-    list.sort((a, b) => Number(b) - Number(a))
+    list.sort((a, b) => Number(a) - Number(b))
     return list
 }
 function addChildToSiteRep(nodeId, child) {
@@ -900,7 +951,7 @@ function reduceDateTimeNodeId(nodeId) {
     let indexOfRefNodeId = sortedNodeIdsNumber.indexOf(refNodeIdNumber)
 
     if (indexOfRefNodeId === -1) throw new Error("reduceDateTimeNodeId: indexOfRefNodeId can not be -1")
-    if (indexOfRefNodeId === 0) return `${sortedNodeIdsNumber[indexOfRefNodeId] - 10000}`
+    if (indexOfRefNodeId === 0) return `${refNodeIdNumber - 10000}`
     if (indexOfRefNodeId <= sortedNodeIdsNumber.length - 1) {
         return `${(sortedNodeIdsNumber[indexOfRefNodeId] + sortedNodeIdsNumber[indexOfRefNodeId - 1]) / 2}`
     }
@@ -919,7 +970,7 @@ function increaseDateTimeNodeId(nodeId) {
 
     if (indexOfRefNodeId === -1) throw new Error("increaseDateTimeNodeId: indexOfRefNodeId can not be -1")
     
-    if (indexOfRefNodeId === 0) return Date.now().toString()
+    if (indexOfRefNodeId === 0) return `${refNodeIdNumber + 2000}`
 
     if (indexOfRefNodeId < sortedNodeIdsNumber.length - 1) {
         return `${(sortedNodeIdsNumber[indexOfRefNodeId] + sortedNodeIdsNumber[indexOfRefNodeId + 1]) / 2}`

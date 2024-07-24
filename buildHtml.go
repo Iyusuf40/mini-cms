@@ -38,6 +38,7 @@ var htmlAttributesToSet = []string{
 	"parentNodeId",
 	"src",
 	"alt",
+	"href",
 }
 
 // used to identify nodes and add collapsible editor to it
