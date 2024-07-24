@@ -41,7 +41,11 @@ var baseUrl = "http://localhost:3000"
 
 function makeElementDescriptionCollapsible(nodeId) {
     let collapsibleContainersContainer = document.createElement("div")
-    collapsibleContainersContainer.style.position = "relative"
+    collapsibleContainersContainer.classList.add(nodeId) // identify each node's modifier
+    collapsibleContainersContainer.style.position = "absolute"
+    collapsibleContainersContainer.style.right = "0px"
+    collapsibleContainersContainer.style.top = "0px"
+    collapsibleContainersContainer.style.display = "inline-block"
     collapsibleContainersContainer.style.width = "100%" 
     let collapsibleContainer = document.createElement("div")
     collapsibleContainersContainer.appendChild(collapsibleContainer)
@@ -54,6 +58,9 @@ function makeElementDescriptionCollapsible(nodeId) {
 
     let toggleBtn = document.createElement("button")
     toggleBtn.classList.add("toggle-button")
+    if (nodeId === "0") {
+        toggleBtn.style.zIndex = "100"
+    }
     toggleBtn.textContent = "+"
     
     addEventListenerToToggleBtn(toggleBtn, collapsibleContainer)
@@ -142,6 +149,10 @@ function makeElementDescriptionCollapsible(nodeId) {
     return collapsibleContainersContainer
 }
 
+function getElementDescriptionCollapsible(nodeEl, nodeId) {
+    return nodeEl.getElementsByClassName(`${nodeId}`)[0]
+}
+
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
     let collapsible = makeElementDescriptionCollapsible(nodeId || "")
@@ -228,14 +239,25 @@ function getSiteRepNodeByNodeId(nodeId) {
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
 
-function recursivelyFindNodeWithId(root, nodeId) {
+function getSiteRepNodeParentByChildNodeId(nodeId) {
+    if (!SITE_REP) {
+        alert("getSiteRepNodeParentByChildNodeId: SITE_REP should not be null")
+        throw new Error("getSiteRepNodeParentByChildNodeId: SITE_REP should not be null")
+    }
+
+    let relevantNode = SITE_REP[window.location.pathname]
+    return recursivelyFindNodeWithId(relevantNode, nodeId, true)
+}
+
+function recursivelyFindNodeWithId(root, nodeId, getParent=false) {
     if (!root) return null
     if (root.nodeId === nodeId) return root
     if (root.children){
         for (const node of Object.values(root.children)) {
+            if (node.nodeId === nodeId && getParent) return root
             if (node.nodeId === nodeId) return node
             if (node.children) {
-                let res = recursivelyFindNodeWithId(node, nodeId)
+                let res = recursivelyFindNodeWithId(node, nodeId, getParent)
                 if (res) return res
             }
         }
@@ -252,17 +274,34 @@ function updateSiteRep(nodeId, field, value) {
     siteRepNode[field] = value
 }
 
+function deleteNodeInSiteRep(nodeId) {
+    let siteRepNode = getSiteRepNodeByNodeId(nodeId)
+    if (!siteRepNode) {
+        throw new Error(`deleteNodeInSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
+    }
+
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+    if (!parentNode) {
+        throw new Error("deleteNodeInSiteRep: parent node not found")
+    }
+
+    if (!parentNode.children[nodeId]) {
+        throw new Error("deleteNodeInSiteRep: child not found in parent") 
+    }
+    
+    delete parentNode.children[nodeId]
+}
+
 function setContent(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.innerText = value
+    setTextInFirstChildParagraph(nodeEl, value)
     updateSiteRep(nodeId, "text", value)
-    let collapsible = makeElementDescriptionCollapsible(nodeId)
-    nodeEl.appendChild(collapsible)
+    let collapsible = getElementDescriptionCollapsible(nodeEl, nodeId)
     Array.from(collapsible.children).forEach(child => {
         if (child.textContent === "+") {
-            child.click()
+            child.click()  // open collapsible
             Array.from(collapsible.children).forEach(child => {
                 let contentInput = child.querySelector("textarea")
                 if (contentInput) {
@@ -274,11 +313,28 @@ function setContent(nodeId, value) {
     })
 }
 
-function addChild(nodeId, value) {
-    createNodeElCreationForm(nodeId)
+function setTextInFirstChildParagraph(nodeEl, text) {
+    let firstP = nodeEl.querySelector("p")
+    if (!firstP) {
+        let p = document.createElement("p")
+        p.innerText = text
+        nodeEl.appendChild(p)
+    } else {
+        firstP.innerText = text
+    }
 }
 
-function createNodeElCreationForm(nodeId) {
+function addChild(nodeId, value, newNodeId="", position="") {
+    createNodeElCreationForm({nodeId, newNodeId, position})
+}
+
+function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
+    {type: "container", value: "div"},
+    {type: "paragraph", value: "p"},
+    {type: "heading", value: "h1"},
+    {type: "subheading", value: "h3"},
+    // {type: "image", value: "img"},
+], newNodeId="", position=""}) {
     let body = document.querySelector("body")
     let nodeElCreationForm = document.createElement("div")
     nodeElCreationForm.style.position = "absolute"
@@ -296,15 +352,8 @@ function createNodeElCreationForm(nodeId) {
     let typeSelectorEl = document.createElement("select")
     typeSelectorEl.style.display = "block"
     typeSelectorEl.setAttribute("id", "nodeTypeSelector")
-    let typeOptions = [
-        {type: "container", value: "div"},
-        {type: "paragraph", value: "p"},
-        {type: "heading", value: "h1"},
-        {type: "subheading", value: "h3"},
-        // {type: "image", value: "img"},
-    ]
 
-    typeOptions.forEach(option => {
+    nodeCreationTypeOptions.forEach(option => {
         let optionEl = document.createElement('option');
         optionEl.setAttribute('value', option.value);
         optionEl.textContent = option.type;
@@ -326,7 +375,7 @@ function createNodeElCreationForm(nodeId) {
     let appendChildBtn = document.createElement("button")
     appendChildBtn.innerText = "add"
     appendChildBtn.onclick = () => {
-        appendContentToNodeEl(nodeId, typeSelectorEl.value, textContent.value)
+        appendContentToNodeEl(nodeId, typeSelectorEl.value, textContent.value, newNodeId, position)
         nodeElCreationForm.remove()
     }
 
@@ -337,28 +386,99 @@ function createNodeElCreationForm(nodeId) {
     return nodeElCreationForm
 }
 
-function appendContentToNodeEl(nodeId, tag, text) {
+function appendContentToNodeEl(nodeId, tag, text, newNodeId="", position="") {
     let nodeEl = getnodeElementByNodeId(nodeId)
     if (!nodeEl) {
         alert(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
         throw new Error(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
     }
 
-    // update siterep
     let newNode = {tag, text}
-    let newNodeId = Date.now().toString()
-    newNode.nodeId = newNodeId
-    addChildToSiteRep(nodeId, newNode)
+    let childNodeId = newNodeId || Date.now().toString()
+    newNode.nodeId = childNodeId
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
 
     // update ui
     let childEl = document.createElement(tag)
-    childEl.innerText = text
+    childEl.innerText = text // to-do: use p tag for text?
     childEl.classList.add("__node")
-    childEl.setAttribute("nodeId", newNodeId)
+    childEl.setAttribute("nodeId", childNodeId)
     appendElementDescriptionCollapsible(childEl)
-    nodeEl.appendChild(childEl)  
+    switch (position) {
+        case "before":
+            addChildToSiteRep(parentNode.nodeId, newNode)
+            nodeEl.before(childEl)
+            break
+        case "after":
+            addChildToSiteRep(parentNode.nodeId, newNode)
+            nodeEl.after(childEl)
+            break
+        default:
+            nodeEl.appendChild(childEl) 
+            addChildToSiteRep(nodeId, newNode)
+    } 
 }
 
+function getElementAfterNewNodeId(nodeId, newNodeId) {
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+    if (!parentNode) return null
+    let parentNodeEl = getnodeElementByNodeId(parentNode.nodeId)
+
+    if (!parentNodeEl) return null
+
+    let childNodes = Array.from(parentNodeEl.querySelectorAll(".__node") || [])
+    let nodeIds = childNodes.map(node => node.getAttribute("nodeId"))
+    let sortedNodeIds = sortStringList(nodeIds)
+    let sortedNodeIdsNumber = sortedNodeIds.map(id => Number(id))
+    let newNodeIdNumber = Number(newNodeId)
+    for (let i = 0; i < sortedNodeIdsNumber.length; i++) {
+        if (sortedNodeIdsNumber[i] > newNodeIdNumber){
+            let requiredNodeId = sortedNodeIds[i]
+            for (let j = 0; j < childNodes.length; j++) {
+                if (childNodes[j].getAttribute("nodeId") === requiredNodeId)
+                    return childNodes[j]
+            }
+            break
+        }
+    }
+    return null
+}
+
+function getElementBeforeNewNodeId(nodeId, newNodeId) {
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+    if (!parentNode) return null
+    let parentNodeEl = getnodeElementByNodeId(parentNode.nodeId)
+
+    if (!parentNodeEl) return null
+
+    let childNodes = Array.from(parentNodeEl.querySelectorAll(".__node") || [])
+    let nodeIds = childNodes.map(node => node.getAttribute("nodeId"))
+    let sortedNodeIds = sortStringList(nodeIds)
+    let sortedNodeIdsNumber = sortedNodeIds.map(id => Number(id))
+    let newNodeIdNumber = Number(newNodeId)
+    for (let i = 0; i < sortedNodeIdsNumber.length; i++) {
+        if (sortedNodeIdsNumber[i] > newNodeIdNumber){
+            if (i == 0) return null
+            let requiredNodeId = sortedNodeIds[i - 1]
+            for (let j = 0; j < childNodes.length; j++) {
+                if (childNodes[j].getAttribute("nodeId") === requiredNodeId)
+                    return childNodes[j]
+            }
+            break
+        }
+    }
+
+    for (let j = 0; j < childNodes.length; j++) {
+        if (childNodes[j].getAttribute("nodeId") === sortedNodeIds[sortedNodeIds.length - 1])
+            return childNodes[j]
+    }
+    return null
+}
+
+function sortStringList(list) {
+    list.sort((a, b) => Number(b) - Number(a))
+    return list
+}
 function addChildToSiteRep(nodeId, child) {
     let node = getSiteRepNodeByNodeId(nodeId)
     if (!node) {
@@ -376,24 +496,27 @@ function addChildToSiteRep(nodeId, child) {
 }
 
 function addNodeBefore(nodeId, value) {
-    // pull up form to enter node details
+    addChild(nodeId, "", reduceDateTimeNodeId(nodeId), "before")
 }
 
 function addNodeAfter(nodeId, value) {
-
+    addChild(nodeId, "", increaseDateTimeNodeId(nodeId), "after")
 }
 
 function addHeading(nodeId, value) {
-    // pull up form to enter heading details
-    // add child
+    createNodeElCreationForm({nodeId, nodeCreationTypeOptions: [{type: "heading", value: "h1"}]})
 }
 
 function addSubHeading(nodeId, value) {
-
+    createNodeElCreationForm({nodeId, nodeCreationTypeOptions: [{type: "subheading", value: "h3"}]})
 }
 
-function deleteNode(nodeI, value) {
-    
+function deleteNode(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    nodeEl.remove()
+    deleteNodeInSiteRep(nodeId)   
 }
 
 function increaseFontSize(nodeId, STEP) {
@@ -426,7 +549,9 @@ function increaseWidth(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    let prevWidth = nodeEl.offsetWidth
+    let prevWidth = nodeEl.offsetWidth 
+        - Number(getCssProp(nodeEl, "padding-left").replace("px", "") || 0)
+        - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
     let updatedValue = Number(STEP) + prevWidth
     nodeEl.style.width = `${updatedValue}px`
     updateSiteRep(nodeId, "width", `${updatedValue}`)
@@ -436,9 +561,10 @@ function decreaseWidth(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    let prevWidth = nodeEl.offsetWidth
+    let prevWidth = nodeEl.offsetWidth 
+        - Number(getCssProp(nodeEl, "padding-left").replace("px", "") || 0)
+        - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
     let updatedValue = prevWidth - Number(STEP)
-    console.table({prevWidth, updatedValue})
     nodeEl.style.width = `${updatedValue}px`
     updateSiteRep(nodeId, "width", `${updatedValue}`)
 }
@@ -448,6 +574,8 @@ function increaseHeight(nodeId, STEP) {
 
     if (!nodeEl) return
     let prevHeight = nodeEl.offsetHeight
+        - Number(getCssProp(nodeEl, "padding-top").replace("px", "") || 0)
+        - Number(getCssProp(nodeEl, "padding-bottom").replace("px", "") || 0)
     let updatedValue = Number(STEP) + prevHeight
     nodeEl.style.height = `${updatedValue}px`
     updateSiteRep(nodeId, "height", `${updatedValue}`)
@@ -458,6 +586,8 @@ function decreaseHeight(nodeId, STEP) {
 
     if (!nodeEl) return
     let prevHeight = nodeEl.offsetHeight
+        - Number(getCssProp(nodeEl, "padding-top").replace("px", "") || 0)
+        - Number(getCssProp(nodeEl, "padding-bottom").replace("px", "") || 0)
     let updatedValue = prevHeight - Number(STEP)
     nodeEl.style.height = `${updatedValue}px`
     updateSiteRep(nodeId, "height", `${updatedValue}`)
@@ -534,6 +664,10 @@ function shiftUp(nodeId, value){
     let updatedValue = `${Number(prevTop) - Number(STEP)}`
     nodeEl.style.top = `${updatedValue}px`
     updateSiteRep(nodeId, "shiftTop", updatedValue)
+}
+
+function getCssProp(nodeEl, prop) {
+    return window.getComputedStyle(nodeEl, null).getPropertyValue(prop)
 }
 
 function shiftDown(nodeId, value){
@@ -703,28 +837,6 @@ const putOpt = {
     // body: REMEMBER TO USE SPREAD SYNTAX TO INCLUDE BODY
 }
 
-async function commitSiteRep() {
-    let path = window.location.pathname
-    if (!SITE_REP[path]) return
-    
-    // prevent each path from having root properties
-    let pathSiteRep = {}
-    // allow buildPathHtml at Backend
-    pathSiteRep[path] = SITE_REP[path]
-    pathSiteRep["path"] = path
-    pathSiteRep.title = SITE_REP.title
-    pathSiteRep.footer = SITE_REP.footer
-
-    // TO-DO check if changed so as not to traverse network
-
-    const url = baseUrl + "/"
-
-    let res = await putData(url, {data: pathSiteRep})
-    if (res.error) {
-        alert(res.error)
-    }
-}
-
 async function postData(url, data) {
     const postOptLocal = {...postOpt, body: JSON.stringify(data)}
     return fetch(url, postOptLocal)
@@ -753,4 +865,64 @@ async function putData(url, data) {
         console.error(err)
         return null
       })
+}
+
+async function commitSiteRep() {
+    let path = window.location.pathname
+    if (!SITE_REP[path]) return
+    
+    // prevent each path from having root properties
+    let pathSiteRep = {}
+    // allow buildPathHtml at Backend
+    pathSiteRep[path] = SITE_REP[path]
+    pathSiteRep["path"] = path
+    pathSiteRep.title = SITE_REP.title
+    pathSiteRep.footer = SITE_REP.footer
+
+    // TO-DO check if changed so as not to traverse network
+
+    const url = baseUrl + "/"
+
+    let res = await putData(url, {data: pathSiteRep})
+    if (res.error) {
+        alert(res.error)
+    }
+}
+
+function reduceDateTimeNodeId(nodeId) {
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+
+    if (!parentNode) throw new Error("reduceDateTimeNodeId: parentNode can not be empty")
+    let childrenNodeIds = Object.keys(parentNode.children)
+    let sortedNodeIds = sortStringList(childrenNodeIds)
+    let sortedNodeIdsNumber = sortedNodeIds.map(id => Number(id))
+    let refNodeIdNumber = Number(nodeId)
+    let indexOfRefNodeId = sortedNodeIdsNumber.indexOf(refNodeIdNumber)
+
+    if (indexOfRefNodeId === -1) throw new Error("reduceDateTimeNodeId: indexOfRefNodeId can not be -1")
+    if (indexOfRefNodeId === 0) return `${sortedNodeIdsNumber[indexOfRefNodeId] - 10000}`
+    if (indexOfRefNodeId <= sortedNodeIdsNumber.length - 1) {
+        return `${(sortedNodeIdsNumber[indexOfRefNodeId] + sortedNodeIdsNumber[indexOfRefNodeId - 1]) / 2}`
+    }
+    throw new Errow("reduceDateTimeNodeId: we should not get here")
+}
+
+function increaseDateTimeNodeId(nodeId) {
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+
+    if (!parentNode) throw new Error("increaseDateTimeNodeId: parentNode can not be empty")
+    let childrenNodeIds = Object.keys(parentNode.children)
+    let sortedNodeIds = sortStringList(childrenNodeIds)
+    let sortedNodeIdsNumber = sortedNodeIds.map(id => Number(id))
+    let refNodeIdNumber = Number(nodeId)
+    let indexOfRefNodeId = sortedNodeIdsNumber.indexOf(refNodeIdNumber)
+
+    if (indexOfRefNodeId === -1) throw new Error("increaseDateTimeNodeId: indexOfRefNodeId can not be -1")
+    
+    if (indexOfRefNodeId === 0) return Date.now().toString()
+
+    if (indexOfRefNodeId < sortedNodeIdsNumber.length - 1) {
+        return `${(sortedNodeIdsNumber[indexOfRefNodeId] + sortedNodeIdsNumber[indexOfRefNodeId + 1]) / 2}`
+    }
+    return Date.now().toString()   
 }

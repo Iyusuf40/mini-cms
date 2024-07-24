@@ -237,8 +237,8 @@ func getInlineStyle(node map[string]any) string {
 		if value, ok := node[styleProp].(string); ok {
 			switch styleProp {
 			case "width", "height":
-				stylesAndValues = fmt.Sprintf(`%s min-%s: %s;`, stylesAndValues, itsCss, addPxIfNotSet(value))
-				stylesAndValues = fmt.Sprintf(`%s %s: fit-content;`, stylesAndValues, itsCss)
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, addPxIfNotSet(value))
+				stylesAndValues = fmt.Sprintf(`%s min-%s: fit-content;`, stylesAndValues, itsCss)
 			case "shiftTop", "shiftBottom", "shiftRight", "shiftLeft",
 				"paddingTop", "paddingBottom", "paddingRight", "paddingLeft",
 				"edgeRounding", "padding", "margin", "gap", "fontSize":
@@ -279,7 +279,7 @@ func getInlineStyle(node map[string]any) string {
 }
 
 func addPxIfNotSet(cssVal string) string {
-	_, err := strconv.Atoi(cssVal)
+	_, err := strconv.ParseFloat(cssVal, 32)
 	if err != nil {
 		return cssVal
 	}
@@ -314,7 +314,7 @@ func openHtml(title string) string {
 	<head>
 		<meta charset="utf-8" />
 		<link rel="icon" href="/favicon.ico" />
-		<link rel="stylesheet" href="styles.css?33">
+		<link rel="stylesheet" href="styles.css">
 		<meta name="viewport" content="width=device-width, initial-scale=1" />
 
 		<title>%s</title>

@@ -1,3 +1,11 @@
+html {
+    box-sizing: border-box;
+}
+
+*, *:before, *:after {
+    box-sizing: border-box;
+}
+
 .__node {
     position: relative;
 }
@@ -30,7 +38,7 @@
     overflow: hidden;
     font-size: 1rem;
     transition: max-height 0.2s ease-out, padding 0.2s ease-out;
-    z-index: 1000
+    z-index: 10
 }
 
 .toggle-content.open {
