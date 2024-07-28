@@ -239,7 +239,6 @@ func getInlineStyle(node map[string]any) string {
 			switch styleProp {
 			case "width", "height":
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, addPxIfNotSet(value))
-				stylesAndValues = fmt.Sprintf(`%s min-%s: fit-content;`, stylesAndValues, itsCss)
 			case "shiftTop", "shiftBottom", "shiftRight", "shiftLeft",
 				"paddingTop", "paddingBottom", "paddingRight", "paddingLeft",
 				"edgeRounding", "padding", "margin", "gap", "fontSize":
@@ -270,6 +269,12 @@ func getInlineStyle(node map[string]any) string {
 		}
 	}
 
+	if node["tag"] == "img" {
+		stylesAndValues = fmt.Sprintf(`%s object-fit: cover;`, stylesAndValues)
+		stylesAndValues = fmt.Sprintf(`%s max-width: 100%%;`, stylesAndValues)
+		stylesAndValues = fmt.Sprintf(`%s max-height: 100%%;`, stylesAndValues)
+	}
+
 	if extendedStyle, ok := node["extendedStyle"].(string); ok {
 		stylesAndValues = fmt.Sprintf(`%s %s;`, stylesAndValues, extendedStyle)
 	}
@@ -282,6 +287,7 @@ func getInlineStyle(node map[string]any) string {
 func addPxIfNotSet(cssVal string) string {
 	_, err := strconv.ParseFloat(cssVal, 32)
 	if err != nil {
+		// could be 12px, auto, fit-content, inherit etc. do not change
 		return cssVal
 	}
 	return fmt.Sprintf("%spx", cssVal)

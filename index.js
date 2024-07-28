@@ -117,7 +117,6 @@ function makeElementDescriptionCollapsible(nodeId) {
                 fieldContainer.appendChild(fieldEl)
                 collapsibleContainer.appendChild(fieldContainer)
                 
-                fieldEl.onclick = (e) => e.preventDefault()
                 fieldEl.oninput = (e) => {
                     e.preventDefault()
                     action(nodeId, e.target.value)
@@ -295,6 +294,8 @@ function deleteNodeInSiteRep(nodeId) {
         throw new Error("deleteNodeInSiteRep: child not found in parent") 
     }
     
+    // TO-DO
+    // check if an image, delete src at backend
     delete parentNode.children[nodeId]
 }
 
@@ -319,6 +320,18 @@ function setContent(nodeId, value) {
     })
 }
 
+function closeCollapsible(nodeId) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let collapsible = getElementDescriptionCollapsible(nodeEl, nodeId)
+    Array.from(collapsible.children).forEach(child => {
+        if (child.textContent === "-") {
+            child.click() 
+        }
+    })
+}
+
 function setTextInFirstChildParagraph(nodeEl, text) {
     let firstP = nodeEl.querySelector("p")
     if (!firstP) {
@@ -331,6 +344,7 @@ function setTextInFirstChildParagraph(nodeEl, text) {
 }
 
 function addChild(nodeId, value, newNodeId="", position="") {
+    closeCollapsible(nodeId)
     createNodeElCreationForm({nodeId, newNodeId, position})
 }
 
@@ -340,7 +354,7 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     {type: "heading", value: "h1"},
     {type: "subheading", value: "h3"},
     {type: "link", value: "a"},
-    // {type: "image", value: "img"},
+    {type: "image", value: "img"},
 ], newNodeId="", position=""}) {
     let body = document.querySelector("body")
     let nodeElCreationForm = document.createElement("div")
@@ -378,14 +392,25 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     linkInput.placeholder = "url"
     linkInput.style.display = "block"
     nodeElCreationForm.appendChild(linkInput)
+
+    let imageInput = document.createElement("input")
+    imageInput.setAttribute("type", "file")
+    imageInput.style.display = "block"
+    nodeElCreationForm.appendChild(imageInput)
     
     function disableIrrelevantFields() {
         if (typeSelectorEl.value === "a") {
-            textContent.disabled = true
             linkInput.disabled = false
+            textContent.disabled = true
+            imageInput.disabled = true    
+        } else if (typeSelectorEl.value === "img") {
+            imageInput.disabled = false
+            textContent.disabled = true
+            linkInput.disabled = true
         } else {
             textContent.disabled = false
-            linkInput.disabled = true
+            linkInput.disabled = true 
+            imageInput.disabled =true
         }
     }
 
@@ -400,13 +425,21 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
         nodeElCreationForm.remove()
     }
 
+    const getFormValue = (selectOpt) => {
+        let possibleValues = {
+            "a": linkInput.value,
+            "img": imageInput.files?.item(0),
+        }
+        return possibleValues[selectOpt] ? possibleValues[selectOpt] : textContent.value
+    }
+
     let appendChildBtn = document.createElement("button")
     appendChildBtn.innerText = "add"
     appendChildBtn.onclick = () => {
         appendContentToNodeEl(
             nodeId, 
             typeSelectorEl.value, 
-            typeSelectorEl.value === "a"? linkInput.value : textContent.value, 
+            getFormValue(typeSelectorEl.value), 
             newNodeId, 
             position
         )
@@ -421,14 +454,14 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     return nodeElCreationForm
 }
 
-function appendContentToNodeEl(nodeId, tag, text, newNodeId="", position="") {
+function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
     let nodeEl = getnodeElementByNodeId(nodeId)
     if (!nodeEl) {
         alert(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
         throw new Error(`appendContentToNodeEl: element with nodeId ${nodeId} does not exist`)
     }
 
-    let newNode = {tag, text}
+    let newNode = {tag, text: value}
     let childNodeId = newNodeId || Date.now().toString()
     newNode.nodeId = childNodeId
     let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
@@ -437,17 +470,56 @@ function appendContentToNodeEl(nodeId, tag, text, newNodeId="", position="") {
     let childEl = document.createElement(tag)
 
     if (tag === "a") {
-        newNode.href = text
+        newNode.href = value
         newNode.text = "link"
-        childEl.setAttribute("href", text)
+        childEl.setAttribute("href", value)
         let p = document.createElement("p")
-        text = "link"
-        p.innerText = text
+        value = "link"
+        p.innerText = value
         childEl.style.display = "block"
         childEl.appendChild(p)
+    } else if (tag === "img") {
+        let newNodeId = Date.now().toString()
+        appendContentToNodeEl(nodeId, "div", "", newNodeId, position)
+        decreaseWidth(newNodeId, 100)
+        let imageContainer = getnodeElementByNodeId(newNodeId)
+        if (!imageContainer) {
+            alert(`appendContentToNodeEl: element with newNodeId ${newNodeId} does not exist`)
+            throw new Error(`appendContentToNodeEl: element with newNodeId ${newNodeId} does not exist`)
+        }
+
+        let childNodeId = Date.now().toString()
+
+        let parentNode = getSiteRepNodeByNodeId(newNodeId)
+    
+        let childEl = document.createElement(tag)
+
+        const imageId = Date.now().toString()
+        childEl.setAttribute("id", imageId)
+        childEl.setAttribute("max-width", "100%")
+        childEl.setAttribute("max-height", "100%")
+        childEl.setAttribute("width", "100%")
+        childEl.setAttribute("height", "100%")
+        childEl.style.display = "inline-block"
+        childEl.style.objectFit = "cover"   // ---
+        childEl.style.borderRadius = "inherit"  // ---
+        let newNode = {tag, width: "100%", height: "100%", edgeRounding: "inherit"}
+        newNode.nodeId = childNodeId
+        imageContainer.appendChild(childEl)
+        displayImage(value, imageId)
+        // TO-DO
+        // queue images in a map keyed by imageId and upload all to backend on commit
+        // delete queued image by its id if it node is deleted in siterep
+        get_SHA256_Hash(value)
+        .then(function(hash) {
+            handleFileUpload(value, hash)
+            newNode.src = baseUrl + "/images/" + hash
+            addChildToSiteRep(parentNode.nodeId, newNode)
+        })
+        return
     } else {
         let p = document.createElement("p")
-        p.innerText = text
+        p.innerText = value
         childEl.appendChild(p)
     }
 
@@ -547,18 +619,22 @@ function addChildToSiteRep(nodeId, child) {
 }
 
 function addNodeBefore(nodeId, value) {
+    closeCollapsible(nodeId)
     addChild(nodeId, "", reduceDateTimeNodeId(nodeId), "before")
 }
 
 function addNodeAfter(nodeId, value) {
+    closeCollapsible(nodeId)
     addChild(nodeId, "", increaseDateTimeNodeId(nodeId), "after")
 }
 
 function addHeading(nodeId, value) {
+    closeCollapsible(nodeId)
     createNodeElCreationForm({nodeId, nodeCreationTypeOptions: [{type: "heading", value: "h1"}]})
 }
 
 function addSubHeading(nodeId, value) {
+    closeCollapsible(nodeId)
     createNodeElCreationForm({nodeId, nodeCreationTypeOptions: [{type: "subheading", value: "h3"}]})
 }
 
@@ -828,7 +904,6 @@ function setExtendCss(nodeId, value) {
             if (cssProp.includes("-")) {
                 cssProp = convertToCamelCase(cssProp).trim()
             }
-            console.log([cssProp, cssVal])
             nodeEl.style[cssProp] = cssVal
             startIndex = endIndex + 1
         }
@@ -977,3 +1052,45 @@ function increaseDateTimeNodeId(nodeId) {
     }
     return Date.now().toString()   
 }
+
+function displayImage(image, imageId) {
+    if (!image) return
+  
+    if (image.size > 5000000) {
+      alert("Error: maximum image size limit is 5MB")
+      return
+    }
+  
+    const reader = new FileReader()
+    reader.readAsDataURL(image)
+    reader.onload = (e) => {
+      const imageEl = document.getElementById(imageId)
+      if (!imageEl || !e.target) return
+      imageEl.src = e.target.result
+      imageEl.style.display = "block"
+    };
+}
+  
+async function handleFileUpload(file, fileSHA256HexString) {
+    if (!file) return {error: "no file file in payload"}
+    const formData = new FormData()
+    formData.append("image", file)
+
+    const url = baseUrl + `/image/` + fileSHA256HexString
+    return fetch(url, {
+      method: "POST",
+      body: formData,
+    })
+    .then(d => d.json())
+    .then(res => res)
+}
+
+// content is assumed to be a blob
+async function get_SHA256_Hash(content) {
+    const hash = await crypto.subtle.digest('SHA-256', await content.arrayBuffer());
+
+    const hashArray = Array.from(new Uint8Array(hash));
+    const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
+    return hashHex;
+}
+  

@@ -2,6 +2,7 @@ package main
 
 import (
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"strings"
@@ -22,6 +23,7 @@ var siteRepStore, _ = backendUtils.GetDB_Engine("file", "siterep", "siterep")
 func main() {
 	wait := make(chan int)
 	siteRepStore.Save(DefaultSiteRep)
+	createDirectoryRecursivelyIfNotExist("images")
 
 	go func() {
 		ServeSite()
@@ -48,6 +50,8 @@ func ServeSite() {
 	e.PUT("/footer", updateFooter)
 
 	e.GET("/siterep", getSiteRep)
+
+	e.POST("/image/:imageId", addImage)
 
 	e.Logger.Fatal(e.Start(":" + PORT))
 }
@@ -84,8 +88,53 @@ func servePath(c echo.Context) error {
 		return c.File(dirWIthPath)
 	}
 
+	if fileExists(dirWIthPath) {
+		return c.File(dirWIthPath)
+	}
+
+	if fileExists(path) {
+		return c.File(path)
+	}
+
 	// look at index.html at path directory and send back
 	return c.File(dirWIthPath + "/index.html")
+}
+
+func addImage(c echo.Context) error {
+	fileSHA256HexString := c.Param("imageId")
+	// Read form file
+	file, err := c.FormFile("image")
+	if err != nil {
+		return err
+	}
+
+	// Source
+	image, err := file.Open()
+	if err != nil {
+		return err
+	}
+	defer image.Close()
+
+	dst, err := os.Create("images/" + fileSHA256HexString)
+	if err != nil {
+		return err
+	}
+
+	defer dst.Close()
+
+	// Copy
+	if fileSize, err := io.Copy(dst, image); err != nil || fileSize > 5000000 { //5MB
+		if err == nil {
+			return c.JSON(http.StatusBadRequest, echo.Map{
+				"error": "Image too large",
+			})
+		}
+		return err
+	}
+
+	return c.JSON(http.StatusOK, echo.Map{
+		"message": "Image uploaded successfully",
+	})
 }
 
 func addPath(c echo.Context) error {
