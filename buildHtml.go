@@ -237,7 +237,10 @@ func getInlineStyle(node map[string]any) string {
 		itsCss := stylePropAndItsCss[1]
 		if value, ok := node[styleProp].(string); ok {
 			switch styleProp {
-			case "width", "height":
+			case "width":
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, addPxIfNotSet(value))
+				stylesAndValues = fmt.Sprintf(`%s max-%s: %s;`, stylesAndValues, itsCss, "100%")
+			case "height":
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, addPxIfNotSet(value))
 			case "shiftTop", "shiftBottom", "shiftRight", "shiftLeft",
 				"paddingTop", "paddingBottom", "paddingRight", "paddingLeft",

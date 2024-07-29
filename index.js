@@ -681,6 +681,7 @@ function increaseWidth(nodeId, STEP) {
         - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
     let updatedValue = Number(STEP) + prevWidth
     nodeEl.style.width = `${updatedValue}px`
+    nodeEl.style.maxWidth = `100%`
     updateSiteRep(nodeId, "width", `${updatedValue}`)
 }
 
@@ -693,6 +694,7 @@ function decreaseWidth(nodeId, STEP) {
         - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
     let updatedValue = prevWidth - Number(STEP)
     nodeEl.style.width = `${updatedValue}px`
+    nodeEl.style.maxWidth = `100%`
     updateSiteRep(nodeId, "width", `${updatedValue}`)
 }
 
@@ -749,6 +751,7 @@ function setOrientation(nodeId, value) {
 
     if (!nodeEl) return
     nodeEl.style.display = "flex"
+    nodeEl.style.flexWrap = "wrap"
     nodeEl.style.gap = "1rem"
     nodeEl.style.flexDirection = value === "horizontal" ? "row" : "column"
     updateSiteRep(nodeId, value, true)
