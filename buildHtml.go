@@ -70,15 +70,15 @@ func BuildHtml(path string, siteRep map[string]any) error {
 
 	html := openHtml(title)
 
-	html = fmt.Sprintf("%s\n%s\n", html, openMain(siteRep, path))
-
 	html = fmt.Sprintf("%s\n%s\n", html, buildHeader(siteRep))
+
+	html = fmt.Sprintf("%s\n%s\n", html, openMain(siteRep, path))
 
 	html = fmt.Sprintf("%s\n%s\n", html, buildPathHtml(siteRep, path))
 
-	html = fmt.Sprintf("%s\n%s\n", html, buildFooter(siteRep))
-
 	html = fmt.Sprintf("%s\n%s\n", html, closeMain())
+
+	html = fmt.Sprintf("%s\n%s\n", html, buildFooter(siteRep))
 
 	html = fmt.Sprintf("%s\n%s\n", html, closeHtml())
 

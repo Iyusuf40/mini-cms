@@ -68,11 +68,6 @@ func ServeSite() {
 }
 
 func serveRoot(c echo.Context) error {
-	// read index.html at root and send back
-	// if it does not exist send empty html
-	// send back index.js too
-	// index.js should add to the html element a collapsible
-	// to add nodes
 
 	if fileExists("./index.html") {
 		return c.File("index.html")
@@ -198,6 +193,14 @@ func updatePath(c echo.Context) error {
 	err := BuildHtml(path, data)
 	delete(data, "path")
 	updateSiteRepInStore(path, data[path].(map[string]any))
+
+	if header, ok := data["header"].(map[string]any); ok {
+		updateSiteRepInStore("header", header)
+	}
+
+	if footer, ok := data["footer"].(map[string]any); ok {
+		updateSiteRepInStore("footer", footer)
+	}
 
 	if err != nil {
 		response["error"] = err.Error()

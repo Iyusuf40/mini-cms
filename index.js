@@ -35,12 +35,19 @@ const collapsibleFieldElementTypeAction = [
     ["step", "input:text", setStep],
 ]
 
+const headerFooterDesc = [
+    ["add header", "button", addHeader],
+    ["add footer", "button", addFooter]
+]
+
+const mainNodeId = "0"
+
 var STEP  = 2
 var SITE_REP = null
 
 var baseUrl = "http://localhost:3000"
 
-function makeElementDescriptionCollapsible(nodeId) {
+function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
     let collapsibleContainersContainer = document.createElement("div")
     collapsibleContainersContainer.classList.add(nodeId) // identify each node's modifier
     collapsibleContainersContainer.style.position = "absolute"
@@ -70,6 +77,8 @@ function makeElementDescriptionCollapsible(nodeId) {
     collapsibleContainer.classList.add("toggle-content")
 
     collapsibleContainersContainer.appendChild(toggleBtn)
+
+    if (isMainElement) appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer)
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
         let [text, elementType, action] = collapsibleFieldDesc
@@ -155,13 +164,31 @@ function makeElementDescriptionCollapsible(nodeId) {
     return collapsibleContainersContainer
 }
 
+function appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer) {
+    for (const collapsibleFieldDesc of headerFooterDesc) {
+        let [text, elementType, action] = collapsibleFieldDesc
+        let tag = elementType
+        let fieldEl = document.createElement(tag)
+        fieldEl.style.display = "block"
+        fieldEl.innerText = text
+
+        collapsibleContainer.appendChild(fieldEl)
+        // on click
+
+        fieldEl.onclick = (e) => {
+            e.preventDefault()
+            action()
+        }
+    }
+}
+
 function getElementDescriptionCollapsible(nodeEl, nodeId) {
     return nodeEl.getElementsByClassName(`${nodeId}`)[0]
 }
 
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
-    let collapsible = makeElementDescriptionCollapsible(nodeId)
+    let collapsible = makeElementDescriptionCollapsible(nodeId, nodeEl.tagName === "MAIN")
     nodeEl.appendChild(collapsible)
     nodeEl.addEventListener('contextmenu', function(e) {
         e.preventDefault()
@@ -254,6 +281,9 @@ function getSiteRepNodeByNodeId(nodeId) {
         throw new Error("getSiteRepNodeByNodeId: SITE_REP should not be null")
     }
 
+    if (SITE_REP.header?.nodeId === nodeId) return SITE_REP.header
+    if (SITE_REP.footer?.nodeId === nodeId) return SITE_REP.footer
+    
     let relevantNode = SITE_REP[window.location.pathname]
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
@@ -627,7 +657,13 @@ function sortStringList(list) {
     list.sort((a, b) => Number(a) - Number(b))
     return list
 }
+
 function addChildToSiteRep(nodeId, child) {
+    if (child.tag === "header" || child.tag === "footer") {
+        SITE_REP[child.tag] = child
+        return
+    }
+
     let node = getSiteRepNodeByNodeId(nodeId)
     if (!node) {
         alert(`addChildToSiteRep: node with nodeId ${nodeId} not in site rep`)
@@ -661,6 +697,28 @@ function addHeading(nodeId, value) {
 function addSubHeading(nodeId, value) {
     closeCollapsible(nodeId)
     createNodeElCreationForm({nodeId, nodeCreationTypeOptions: [{type: "subheading", value: "h3"}]})
+}
+
+function addHeader() {
+    let header = document.querySelector("header")
+    if (header) return alert("header already exists, cannot have 2 headers")
+    closeCollapsible(mainNodeId)
+    const position = "before"
+    const newNodeId = "-1"
+    createNodeElCreationForm({nodeId: mainNodeId, position, newNodeId, nodeCreationTypeOptions: [
+        {type: "header", value: "header"},
+    ]})
+}
+
+function addFooter() {
+    let footer = document.querySelector("footer")
+    if (footer) return alert("footer already exists, cannot have 2 footers")
+    closeCollapsible(mainNodeId)
+    const position = "after"
+    const newNodeId = "1"
+    createNodeElCreationForm({nodeId: mainNodeId, position, newNodeId, nodeCreationTypeOptions: [
+        {type: "footer", value: "footer"},
+    ]})
 }
 
 function deleteNode(nodeId, value) {
@@ -1066,6 +1124,7 @@ async function commitSiteRep() {
     pathSiteRep["path"] = path
     pathSiteRep.title = SITE_REP.title
     pathSiteRep.footer = SITE_REP.footer
+    pathSiteRep.header = SITE_REP.header
 
     // TO-DO check if changed so as not to traverse network
 
