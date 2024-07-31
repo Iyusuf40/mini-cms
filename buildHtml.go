@@ -20,6 +20,9 @@ var stylePropsAndItsCss = [][2]string{
 	{"left", "text-align"},
 	{"center", "text-align"},
 	{"right", "text-align"},
+	{"start", "margin-right"},
+	{"middle", "margin"},
+	{"end", "margin-left"},
 	{"shiftTop", "top"},
 	{"shiftBottom", "bottom"},
 	{"shiftLeft", "left"},
@@ -43,13 +46,18 @@ var htmlAttributesToSet = []string{
 
 // used to identify nodes and add collapsible editor to it
 var nodeClass = "__node"
-var bodyElementNodeId = "0"
+var mainElementNodeId = "0"
 
 var DefaultSiteRep = map[string]any{
 	"title": "mini-cms",
 	"/": map[string]any{
-		"nodeId": "0",
-		"tag":    "body",
+		"tag": "body",
+		"children": map[string]any{
+			"0": map[string]any{
+				"tag":    "main",
+				"nodeId": "0",
+			},
+		},
 	},
 }
 
@@ -62,11 +70,15 @@ func BuildHtml(path string, siteRep map[string]any) error {
 
 	html := openHtml(title)
 
+	html = fmt.Sprintf("%s\n%s\n", html, openMain(siteRep, path))
+
 	html = fmt.Sprintf("%s\n%s\n", html, buildHeader(siteRep))
 
 	html = fmt.Sprintf("%s\n%s\n", html, buildPathHtml(siteRep, path))
 
 	html = fmt.Sprintf("%s\n%s\n", html, buildFooter(siteRep))
+
+	html = fmt.Sprintf("%s\n%s\n", html, closeMain())
 
 	html = fmt.Sprintf("%s\n%s\n", html, closeHtml())
 
@@ -123,11 +135,22 @@ func convertNodeToHtml(node map[string]any) string {
 	if nodeTag, ok := node["tag"].(string); ok {
 		tag = nodeTag
 	}
-	openTag := makeOpenTag(tag, node)
+
+	openTag := ""
+	closeTag := ""
+
+	if tag == "body" || tag == "main" {
+		openTag = ""
+		closeTag = ""
+	} else {
+		openTag = makeOpenTag(tag, node)
+		closeTag = makeCloseTag(tag)
+	}
+
 	content := getContent(node)
 	children := getChildrenHtml(node)
 	extendedHtml := getExtendedHtml(node)
-	closeTag := makeCloseTag(tag)
+
 	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s", openTag, content, children, extendedHtml, closeTag)
 }
 
@@ -148,9 +171,8 @@ func buildFooter(node map[string]any) string {
 }
 
 func buildPathHtml(node map[string]any, path string) string {
-	if body, ok := node[path].(map[string]any); ok {
-		body["tag"] = "body"
-		return convertNodeToHtml(body)
+	if main, ok := node[path].(map[string]any); ok {
+		return convertNodeToHtml(main)
 	}
 	return ""
 }
@@ -211,12 +233,18 @@ func makeOpenTag(tag string, node map[string]any) string {
 		tag = `div`
 	}
 
+	if tag == "body" {
+		return "<body>"
+	}
+
 	elementStart := fmt.Sprintf(`<%s `, tag)
 	styles := getInlineStyle(node)
 	elementStart = fmt.Sprintf(`%s %s`, elementStart, styles)
 	attributes := getAttributes(node)
 	extendedClass, _ := node["extendedClass"].(string)
+
 	elementStart = fmt.Sprintf(`%s %s class="%s %s">`, elementStart, attributes, nodeClass, extendedClass)
+
 	return elementStart
 }
 
@@ -262,12 +290,16 @@ func getInlineStyle(node map[string]any) string {
 				stylesAndValues = fmt.Sprintf(`%s flex-direction: %s;`, stylesAndValues, "column")
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "gap", "1rem")
 				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "flex-wrap", "wrap")
-			case "left":
-				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "left")
-			case "right":
-				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "right")
-			case "center":
-				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "center")
+			case "start", "middle", "end":
+				switch styleProp {
+				case "middle":
+					stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "margin-left", "auto")
+					stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, "margin-right", "auto")
+				default:
+					stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, "auto")
+				}
+			default: // left, right etc
+				stylesAndValues = fmt.Sprintf(`%s %s: %s;`, stylesAndValues, itsCss, styleProp)
 			}
 		}
 	}
@@ -329,10 +361,24 @@ func openHtml(title string) string {
 
 		<title>%s</title>
 	</head>
-	<body nodeId="%s" class="%s">`,
-		title, bodyElementNodeId, nodeClass)
+	<body>`,
+		title)
 }
 
 func closeHtml() string {
 	return "\t</body>\n<script src=\"index.js\"></script>\n</html>"
+}
+
+func openMain(siteRep map[string]any, path string) string {
+	children := siteRep[path].(map[string]any)["children"].(map[string]any)
+	main, ok := children[mainElementNodeId].(map[string]any)
+	fmt.Println(siteRep[path].(map[string]any)[mainElementNodeId])
+	if !ok {
+		panic("openMain: cannot find main description")
+	}
+	return makeOpenTag("main", main)
+}
+
+func closeMain() string {
+	return "\t</main>"
 }

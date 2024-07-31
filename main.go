@@ -20,9 +20,20 @@ var backendUtils = &goBackendUtils.Utils{}
 var SITE_REP = make(map[string]map[string]any)
 var siteRepStore, _ = backendUtils.GetDB_Engine("file", "siterep", "siterep")
 
+func initSiteRep() {
+	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
+	if len(updatedSiteRepList) != 1 {
+		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
+	}
+	if len(updatedSiteRepList) != 1 {
+		siteRepStore.Save(DefaultSiteRep)
+		siteRepStore.Commit()
+	}
+}
+
 func main() {
 	wait := make(chan int)
-	siteRepStore.Save(DefaultSiteRep)
+	initSiteRep()
 	createDirectoryRecursivelyIfNotExist("images")
 
 	go func() {

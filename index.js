@@ -17,7 +17,8 @@ const collapsibleFieldElementTypeAction = [
     ["background color", "input:color", setBackgroundColor],
     ["orientation", "input:radio:vertical:horizontal", setOrientation],
     ["gap", "input:text", setGap],
-    ["position", "input:radio:left:center:right", setTextAlignment],
+    ["align", "input:radio:left:center:right", setTextAlignment],
+    ["position", "input:radio:start:middle:end", setSelfAlignment],
     ["shift up", "button", shiftUp],
     ["shift down", "button", shiftDown],
     ["shift left", "button", shiftLeft],
@@ -50,6 +51,7 @@ function makeElementDescriptionCollapsible(nodeId) {
     let collapsibleContainer = document.createElement("div")
     collapsibleContainersContainer.appendChild(collapsibleContainer)
     collapsibleContainer.style.display = "flex"
+    collapsibleContainer.style.width = "fit-content"
     collapsibleContainer.style.flexDirection =  "column"
     collapsibleContainer.style.right = "5px"
     collapsibleContainer.style.gap = "0.5rem"
@@ -159,13 +161,25 @@ function getElementDescriptionCollapsible(nodeEl, nodeId) {
 
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
-    let collapsible = makeElementDescriptionCollapsible(nodeId || "")
+    let collapsible = makeElementDescriptionCollapsible(nodeId)
     nodeEl.appendChild(collapsible)
+    nodeEl.addEventListener('contextmenu', function(e) {
+        e.preventDefault()
+        let collapsibleTglBtn = getCollapsibleToggleBtn(nodeId)
+        collapsibleTglBtn.click()
+    })
 }
 
 function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
-    toggleBtn.addEventListener('click', (e) => {
-        e.preventDefault()
+    toggleBtn.addEventListener('click', (event) => {
+        let mouseX = event.clientX;
+    
+        // check if the form will be cut off on the right side
+        if (mouseX - toggleContent.offsetWidth < 0) {
+            toggleContent.style.left = "0px";
+        }
+
+        event.preventDefault()
         if (toggleContent.classList.contains('open')) {
             toggleContent.classList.remove('open');
             toggleBtn.textContent = '+';
@@ -244,6 +258,15 @@ function getSiteRepNodeByNodeId(nodeId) {
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
 
+function updateSiteRep(nodeId, field, value) {
+    let siteRepNode = getSiteRepNodeByNodeId(nodeId)
+    if (!siteRepNode) {
+        throw new Error(`updateSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
+    }
+
+    siteRepNode[field] = value
+}
+
 function getSiteRepNodeParentByChildNodeId(nodeId) {
     if (!SITE_REP) {
         alert("getSiteRepNodeParentByChildNodeId: SITE_REP should not be null")
@@ -270,15 +293,6 @@ function recursivelyFindNodeWithId(root, nodeId, getParent=false) {
     return null
 }
 
-function updateSiteRep(nodeId, field, value) {
-    let siteRepNode = getSiteRepNodeByNodeId(nodeId)
-    if (!siteRepNode) {
-        throw new Error(`updateSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
-    }
-
-    siteRepNode[field] = value
-}
-
 function deleteNodeInSiteRep(nodeId) {
     let siteRepNode = getSiteRepNodeByNodeId(nodeId)
     if (!siteRepNode) {
@@ -295,7 +309,7 @@ function deleteNodeInSiteRep(nodeId) {
     }
     
     // TO-DO
-    // check if an image, delete src at backend
+    // visit all nodes in subtree, if image, delete src at backend
     delete parentNode.children[nodeId]
 }
 
@@ -324,12 +338,23 @@ function closeCollapsible(nodeId) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
+    let collapsibleToggleBtn = getCollapsibleToggleBtn(nodeId)
+    if (collapsibleToggleBtn.textContent === "-") collapsibleToggleBtn.click()
+}
+
+function getCollapsibleToggleBtn(nodeId) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+    let toggleBtn = null
+
+    if (!nodeEl) return
     let collapsible = getElementDescriptionCollapsible(nodeEl, nodeId)
-    Array.from(collapsible.children).forEach(child => {
-        if (child.textContent === "-") {
-            child.click() 
+    toggleBtn = Array.from(collapsible.children).find(child => {
+        if (child.textContent === "-" || child.textContent === "+") {
+            return child
         }
     })
+
+    return toggleBtn
 }
 
 function setTextInFirstChildParagraph(nodeEl, text) {
@@ -642,6 +667,10 @@ function deleteNode(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
+    if (nodeEl.tagName.toLowerCase() === "main") {
+        alert("you cannot delete the root element")
+        return
+    }
     nodeEl.remove()
     deleteNodeInSiteRep(nodeId)   
 }
@@ -780,6 +809,36 @@ function setTextAlignment(nodeId, value) {
             updateSiteRep(nodeId, val, true)
         } else {
             updateSiteRep(nodeId, val, false)
+        }
+    })
+}
+
+function setSelfAlignment(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+
+    let possiblePropsAndValues = [
+        ["start", "marginRight", "auto"], 
+        ["middle", "", ""], 
+        ["end", "marginLeft", "auto"]
+    ]
+    let margins = ["marginRight", "marginLeft", "margin"]
+
+    margins.forEach(margin => {
+        nodeEl.style[margin] = ""
+    })
+
+    possiblePropsAndValues.forEach((val) => {
+        let [prop, cssProp, cssVal] = val
+        updateSiteRep(nodeId, prop, false) // update all to false initially
+        if (prop === value && prop !== "middle") {
+            nodeEl.style[cssProp] = cssVal
+            updateSiteRep(nodeId, prop, true)
+        } else if (prop === value && prop === "middle") {
+            nodeEl.style.marginLeft = "auto"
+            nodeEl.style.marginRight = "auto"
+            updateSiteRep(nodeId, prop, true)
         }
     })
 }
