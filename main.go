@@ -5,6 +5,8 @@ import (
 	"io"
 	"net/http"
 	"os"
+	"path/filepath"
+	"reflect"
 	"strings"
 
 	"github.com/Iyusuf40/goBackendUtils"
@@ -53,12 +55,10 @@ func ServeSite() {
 	e.POST("/", addPath)
 	e.POST("/:path", addPath)
 
+	e.DELETE("/:path", deletePath)
+
 	e.PUT("/", updatePath)
 	e.PUT("/:", updatePath)
-
-	e.PUT("/header", updateHeader)
-
-	e.PUT("/footer", updateFooter)
 
 	e.GET("/siterep", getSiteRep)
 
@@ -90,8 +90,9 @@ func servePath(c echo.Context) error {
 		return err
 	}
 
-	if strings.Contains(path, ".") {
-		return c.File(dirWIthPath)
+	if strings.Contains(path, ".") { // css and js files
+		segments := strings.Split(path, "/")
+		return c.File(segments[len(segments)-1])
 	}
 
 	if fileExists(dirWIthPath) {
@@ -154,21 +155,79 @@ func addPath(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	path, ok := data["path"].(string)
+	path, _ := data["path"].(string)
 
-	if !ok {
-		response["error"] = "invalid path"
+	if path == "" {
+		response["error"] = "path cannot be empty"
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	SITE_REP[path] = map[string]any{}
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
 
-	// create directory at path
-	// build index.html in path
+	siteRep := getSiteRepFromStore()
+	if _, exists := siteRep[path]; exists {
+		response["error"] = fmt.Sprintf("path: %s already exists", path)
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	updateSiteRepInStore(path, map[string]any{
+		"tag": "body",
+		"children": map[string]any{
+			"0": map[string]any{
+				"tag":    "main",
+				"nodeId": "0",
+			},
+		}},
+	)
+
+	siteRep = getSiteRepFromStore()
+
+	BuildHtml(path, siteRep)
 
 	response["message"] = fmt.Sprintf("path: /%s created", path)
 
 	return c.JSON(http.StatusCreated, response)
+}
+
+func deletePath(c echo.Context) error {
+	body := backendUtils.GetBodyInMap(c)
+	data, ok := body["data"].(map[string]any)
+
+	response := map[string]any{}
+
+	if !ok {
+		response["error"] = "data not in payload"
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	path, _ := data["path"].(string)
+
+	if path == "" || path == "/" || strings.Contains(path, ".") {
+		response["error"] = "invalid path"
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	if !strings.HasPrefix(path, "/") {
+		path = "/" + path
+	}
+
+	siteRep := getSiteRepFromStore()
+	if _, exists := siteRep[path]; !exists {
+		response["error"] = fmt.Sprintf("path: %s does not exists", path)
+		return c.JSON(http.StatusBadRequest, response)
+	}
+
+	updateSiteRepInStore(path, nil)
+
+	cwd, _ := os.Getwd()
+
+	os.RemoveAll(filepath.Join(cwd, path))
+
+	response["message"] = fmt.Sprintf("path: /%s deleted", path)
+
+	return c.JSON(http.StatusOK, response)
 }
 
 func updatePath(c echo.Context) error {
@@ -194,12 +253,26 @@ func updatePath(c echo.Context) error {
 	delete(data, "path")
 	updateSiteRepInStore(path, data[path].(map[string]any))
 
+	prevHeader := getHeaderFromSiteRepInStore()
 	if header, ok := data["header"].(map[string]any); ok {
-		updateSiteRepInStore("header", header)
+		if prevHeader == nil || !reflect.DeepEqual(prevHeader, header) {
+			updateSiteRepInStore("header", header)
+			rebuildAllPaths()
+		}
+	} else if prevHeader != nil { // header deleted
+		updateSiteRepInStore("header", nil)
+		rebuildAllPaths()
 	}
 
+	prevFooter := getFooterFromSiteRepInStore()
 	if footer, ok := data["footer"].(map[string]any); ok {
-		updateSiteRepInStore("footer", footer)
+		if prevFooter == nil || !reflect.DeepEqual(prevFooter, footer) {
+			updateSiteRepInStore("footer", footer)
+			rebuildAllPaths()
+		}
+	} else if prevFooter != nil { // footer deleted
+		updateSiteRepInStore("footer", nil)
+		rebuildAllPaths()
 	}
 
 	if err != nil {
@@ -210,16 +283,6 @@ func updatePath(c echo.Context) error {
 	response["message"] = fmt.Sprintf("path: %s updated", path)
 
 	return c.JSON(http.StatusOK, response)
-}
-
-func updateHeader(c echo.Context) error {
-
-	return nil
-}
-
-func updateFooter(c echo.Context) error {
-
-	return nil
 }
 
 func getSiteRep(c echo.Context) error {
@@ -248,6 +311,11 @@ func updateSiteRepInStore(field string, value map[string]any) {
 	}
 	updatedSiteRep := updatedSiteRepList[0]
 	updatedSiteRep[field] = value
+
+	if value == nil {
+		delete(updatedSiteRep, field)
+	}
+
 	updatedSiteRep["updated"] = true
 	deletePreviousSiteRep()
 	siteRepStore.Save(updatedSiteRep)
@@ -263,6 +331,36 @@ func deletePreviousSiteRep() {
 		panic("deletePreviousSiteRep: no sitrep in db")
 	}
 	siteRepStore.Delete(id)
+}
+
+func getHeaderFromSiteRepInStore() map[string]any {
+	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
+	if len(updatedSiteRepList) != 1 {
+		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
+	}
+	if len(updatedSiteRepList) != 1 {
+		panic("getHeaderFromSiteRepInStore: no siterep in db")
+	}
+	updatedSiteRep := updatedSiteRepList[0]
+	if header, ok := updatedSiteRep["header"].(map[string]any); ok {
+		return header
+	}
+	return nil
+}
+
+func getFooterFromSiteRepInStore() map[string]any {
+	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
+	if len(updatedSiteRepList) != 1 {
+		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
+	}
+	if len(updatedSiteRepList) != 1 {
+		panic("getFooterFromSiteRepInStore: no siterep in db")
+	}
+	updatedSiteRep := updatedSiteRepList[0]
+	if footer, ok := updatedSiteRep["footer"].(map[string]any); ok {
+		return footer
+	}
+	return nil
 }
 
 func fileExists(filename string) bool {

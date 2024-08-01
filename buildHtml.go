@@ -6,6 +6,7 @@ import (
 	"path/filepath"
 	"sort"
 	"strconv"
+	"strings"
 )
 
 var stylePropsAndItsCss = [][2]string{
@@ -59,6 +60,23 @@ var DefaultSiteRep = map[string]any{
 			},
 		},
 	},
+}
+
+func rebuildAllPaths() error {
+	siteRep := getSiteRepFromStore() // Fetch the current site representation from the store
+
+	for path := range siteRep {
+
+		if strings.HasPrefix(path, "/") {
+			err := BuildHtml(path, siteRep)
+			if err != nil {
+				fmt.Fprintf(os.Stderr, "Error rebuilding path %s: %s\n", path, err.Error())
+				return err
+			}
+		}
+	}
+
+	return nil
 }
 
 func BuildHtml(path string, siteRep map[string]any) error {
@@ -370,11 +388,13 @@ func closeHtml() string {
 }
 
 func openMain(siteRep map[string]any, path string) string {
-	children := siteRep[path].(map[string]any)["children"].(map[string]any)
-	main, ok := children[mainElementNodeId].(map[string]any)
-	fmt.Println(siteRep[path].(map[string]any)[mainElementNodeId])
+	children, ok := siteRep[path].(map[string]any)["children"].(map[string]any)
 	if !ok {
-		panic("openMain: cannot find main description")
+		return makeOpenTag("main", map[string]any{"nodeId": mainElementNodeId})
+	}
+	main, ok := children[mainElementNodeId].(map[string]any)
+	if !ok {
+		return makeOpenTag("main", map[string]any{"nodeId": mainElementNodeId})
 	}
 	return makeOpenTag("main", main)
 }

@@ -33,6 +33,8 @@ const collapsibleFieldElementTypeAction = [
     ["extendCss", "input:text", setExtendCss],
     ["extendHtml", "input:text", setExtendHtml],
     ["step", "input:text", setStep],
+    ["add path", "input:text", addPath],
+    ["delete path", "button", deletePath],
 ]
 
 const headerFooterDesc = [
@@ -283,7 +285,7 @@ function getSiteRepNodeByNodeId(nodeId) {
 
     if (SITE_REP.header?.nodeId === nodeId) return SITE_REP.header
     if (SITE_REP.footer?.nodeId === nodeId) return SITE_REP.footer
-    
+
     let relevantNode = SITE_REP[window.location.pathname]
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
@@ -1060,6 +1062,25 @@ function setStep(nodeId, value) {
     }
 }
 
+function addPath(nodeId, value) {
+    if (!value.endsWith("::done")) return
+    value = value.replace("::done", "")
+    if (value[0] !== "/") value = `/${value}`
+    let path = value
+    makeAddPathRequest(path)
+}
+
+function deletePath(nodeId, value) {
+    let path = window.location.pathname
+
+    if (path === "/") return alert("cannot delete root path")
+
+    let confirm = prompt("are you sure you want to delete this route? [y]/[n]")
+    if (confirm.toLowerCase().trim() !== "y") return
+    makeDeletePathRequest(path)
+    closeCollapsible(nodeId)
+}
+
 
 // utility function starts from here
 
@@ -1134,6 +1155,39 @@ async function commitSiteRep() {
     if (res.error) {
         alert(res.error)
     }
+}
+
+async function makeAddPathRequest(path) {
+
+    let url = baseUrl + window.location.pathname + path
+    url = url.replace(/\/\//g, "/")
+
+    let relativePath = window.location.pathname + path
+    let reqPayload = {path: relativePath.replace(/\/\//g, "/")}
+
+    let res = await postData(url, {data: reqPayload})
+    if (res.error) {
+        alert(res.error)
+        window.location = relativePath
+    } else {
+        window.location = relativePath
+    }
+}
+
+async function makeDeletePathRequest(path) {
+    let url = baseUrl + path
+    let data = {data: {path}}
+    fetch(url, {
+        method: 'DELETE',
+        body: JSON.stringify(data)
+    })
+    .then(response => {
+        return response.json(); // or response.text() depending on the response type
+    })
+    .then(data => {
+        if (data.error) console.error(data.error)
+        else window.location.href = '/'
+    })
 }
 
 function reduceDateTimeNodeId(nodeId) {
