@@ -329,7 +329,7 @@ func getInlineStyle(node map[string]any) string {
 	}
 
 	if extendedStyle, ok := node["extendedStyle"].(string); ok {
-		stylesAndValues = fmt.Sprintf(`%s %s;`, stylesAndValues, extendedStyle)
+		stylesAndValues = fmt.Sprintf(`%s %s`, stylesAndValues, extendedStyle)
 	}
 
 	style := fmt.Sprintf(`style="position: relative; %s"`, stylesAndValues)

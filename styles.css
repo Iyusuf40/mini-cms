@@ -4,6 +4,11 @@
     padding: 0;
 }
 
+main {
+    min-height: 100vh;
+}
+
+
 *, *:before, *:after {
     box-sizing: border-box;
 }
@@ -44,7 +49,7 @@
 }
 
 .toggle-content.open {
-    max-height: 1000px; /* a large number to ensure it can expand */
+    max-height: 100000px; /* a large number to ensure it can expand */
     padding: 5px;
     transition: max-height 0.2s ease-in, padding 0.2s ease-in;
 }

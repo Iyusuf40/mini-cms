@@ -61,6 +61,7 @@ func ServeSite() {
 	e.PUT("/:", updatePath)
 
 	e.GET("/siterep", getSiteRep)
+	e.GET("/siterep/:path", getSiteRep)
 
 	e.POST("/image/:imageId", addImage)
 
@@ -286,7 +287,26 @@ func updatePath(c echo.Context) error {
 }
 
 func getSiteRep(c echo.Context) error {
-	return c.JSON(http.StatusOK, getSiteRepFromStore())
+	path := c.QueryParam("path")
+
+	siteRepOfPath := map[string]map[string]any{}
+
+	siterep := getSiteRepFromStore()
+
+	if segment, ok := siterep[path].(map[string]any); ok {
+		siteRepOfPath[path] = segment
+	}
+
+	if footer, ok := siterep["footer"].(map[string]any); ok {
+		siteRepOfPath["footer"] = footer
+	}
+
+	if header, ok := siterep["header"].(map[string]any); ok {
+		siteRepOfPath["header"] = header
+	}
+
+	c.Response().Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
+	return c.JSON(http.StatusOK, siteRepOfPath)
 }
 
 func getSiteRepFromStore() map[string]any {

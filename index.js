@@ -23,6 +23,7 @@ const collapsibleFieldElementTypeAction = [
     ["shift down", "button", shiftDown],
     ["shift left", "button", shiftLeft],
     ["shift right", "button", shiftRight],
+    ["duplicate", "button", duplicateNode],
     ["margin", "input:text", setMargin],
     ["padding", "input:text", setPadding],
     ["paddingTop", "input:text", setPaddingTop],
@@ -43,6 +44,8 @@ const headerFooterDesc = [
 ]
 
 const mainNodeId = "0"
+const headerNodeId = "-1"
+const footerNodeId = "1"
 
 var STEP  = 2
 var SITE_REP = null
@@ -130,6 +133,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
                 fieldContainer.appendChild(fieldEl)
                 collapsibleContainer.appendChild(fieldContainer)
                 
+                if (inputType === "text") fieldEl.onclick = (e) => e.preventDefault()
                 fieldEl.oninput = (e) => {
                     e.preventDefault()
                     action(nodeId, e.target.value)
@@ -190,6 +194,7 @@ function getElementDescriptionCollapsible(nodeEl, nodeId) {
 
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
+    if (!nodeId) return
     let collapsible = makeElementDescriptionCollapsible(nodeId, nodeEl.tagName === "MAIN")
     nodeEl.appendChild(collapsible)
     nodeEl.addEventListener('contextmenu', function(e) {
@@ -201,6 +206,7 @@ function appendElementDescriptionCollapsible(nodeEl) {
 
 function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
     toggleBtn.addEventListener('click', (event) => {
+        event.preventDefault()
         let mouseX = event.clientX;
     
         // check if the form will be cut off on the right side
@@ -208,7 +214,6 @@ function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
             toggleContent.style.left = "0px";
         }
 
-        event.preventDefault()
         if (toggleContent.classList.contains('open')) {
             toggleContent.classList.remove('open');
             toggleBtn.textContent = '+';
@@ -240,8 +245,13 @@ window.onload = function () {
 }
 
 async function setSiteRep() {
-    fetch(baseUrl + "/siterep")
-    .then(response => {
+    fetch(baseUrl + "/siterep?path=" + window.location.pathname, {
+        headers: {
+            'Cache-Control': 'no-cache, no-store, must-revalidate', // HTTP/1.1
+            'Pragma': 'no-cache', // HTTP/1.0
+            'Expires': '0' // Proxies
+        }}
+    ).then(response => {
         if (response.status !== 200){
             alert("no project found")
         }
@@ -706,7 +716,7 @@ function addHeader() {
     if (header) return alert("header already exists, cannot have 2 headers")
     closeCollapsible(mainNodeId)
     const position = "before"
-    const newNodeId = "-1"
+    const newNodeId = headerNodeId
     createNodeElCreationForm({nodeId: mainNodeId, position, newNodeId, nodeCreationTypeOptions: [
         {type: "header", value: "header"},
     ]})
@@ -717,7 +727,7 @@ function addFooter() {
     if (footer) return alert("footer already exists, cannot have 2 footers")
     closeCollapsible(mainNodeId)
     const position = "after"
-    const newNodeId = "1"
+    const newNodeId = footerNodeId
     createNodeElCreationForm({nodeId: mainNodeId, position, newNodeId, nodeCreationTypeOptions: [
         {type: "footer", value: "footer"},
     ]})
@@ -953,6 +963,83 @@ function shiftRight(nodeId, value) {
     let updatedValue = `${Number(prevLeft) + Number(STEP)}`
     nodeEl.style.left = `${updatedValue}px`
     updateSiteRep(nodeId, "shiftLeft", updatedValue)
+}
+
+function duplicateNode(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+    let cannotDuplicateNodeIds = [headerNodeId, mainNodeId, footerNodeId]
+    if (cannotDuplicateNodeIds.includes(nodeId)) {
+        return alert("cannot duplicate any of header, main or footer elements")
+    }
+
+    let node = getSiteRepNodeByNodeId(nodeId)
+
+    if (!nodeEl || !node) return
+
+    
+    let nodeClone = JSON.parse(JSON.stringify(node))
+
+    const cloneEl = nodeEl.cloneNode(true)
+    recursivelyReAttachCollapsibleToNodeElAndItsChildren(cloneEl)
+
+    setNewNodeIdsToNodeClone(cloneEl, nodeClone)
+
+    if (!nodeClone.nodeId) throw new Error("duplicateNode: nodeId should be set")
+    
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+
+    // update site rep
+    addChildToSiteRep(parentNode.nodeId, nodeClone)
+
+    nodeEl.after(cloneEl)
+    closeCollapsible(nodeId)
+}
+
+function recursivelyReAttachCollapsibleToNodeElAndItsChildren(nodeEl) {
+    visitAllElements(nodeEl, resetNodeIds)
+    visitAllElements(nodeEl, appendElementDescriptionCollapsible)
+}
+
+function visitAllElements(nodeEl, operation) {
+    operation(nodeEl)
+    Array.from(nodeEl.children).forEach(child => visitAllElements(child, operation));
+}
+
+
+function resetNodeIds(nodeEl) {
+    let nodeId = nodeEl.getAttribute("nodeId")
+    if (nodeId) {
+        let collapsibleContainersContainer = Array.from(nodeEl.children).find(child => child.classList.contains(nodeId))
+        collapsibleContainersContainer?.remove()
+
+        let newNodeId = Date.now().toString()
+
+        nodeEl.setAttribute("nodeId", newNodeId)
+        nodeEl.setAttribute("prevNodeId", nodeId)
+    }
+}
+
+function setNewNodeIdsToNodeClone(cloneEl, nodeClone) {
+    let prevNodeId = cloneEl.getAttribute("prevNodeId")
+    let nodeId = cloneEl.getAttribute("nodeId")
+
+    findNodeWithIdAndUpdateId(nodeClone, prevNodeId, nodeId)
+    Array.from(cloneEl.children).forEach(child => {
+        setNewNodeIdsToNodeClone(child, nodeClone)
+    })
+}
+
+function findNodeWithIdAndUpdateId(node, prevNodeId, currentNodeId) {
+    if (node.nodeId === prevNodeId) {
+        node.nodeId = currentNodeId
+        return
+    }
+
+    if (node.children) {
+        for (let childNode of Object.keys(node.children)) {
+            findNodeWithIdAndUpdateId(childNode, prevNodeId, currentNodeId)
+        }
+    }
 }
 
 function setMargin(nodeId, value) {
