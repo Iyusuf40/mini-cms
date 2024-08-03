@@ -50,7 +50,8 @@ var nodeClass = "__node"
 var mainElementNodeId = "0"
 
 var DefaultSiteRep = map[string]any{
-	"title": "mini-cms",
+	"title":  "mini-cms",
+	"userId": defaultUserId,
 	"/": map[string]any{
 		"tag": "body",
 		"children": map[string]any{
@@ -173,7 +174,7 @@ func convertNodeToHtml(node map[string]any) string {
 }
 
 func buildHeader(node map[string]any) string {
-	if header, ok := node["header"].(map[string]any); ok {
+	if header, ok := node["header"].(map[string]any); ok && header != nil {
 		header["tag"] = "header"
 		return convertNodeToHtml(header)
 	}
@@ -181,9 +182,9 @@ func buildHeader(node map[string]any) string {
 }
 
 func buildFooter(node map[string]any) string {
-	if header, ok := node["footer"].(map[string]any); ok {
-		header["tag"] = "footer"
-		return convertNodeToHtml(header)
+	if footer, ok := node["footer"].(map[string]any); ok && footer != nil {
+		footer["tag"] = "footer"
+		return convertNodeToHtml(footer)
 	}
 	return ""
 }
@@ -323,7 +324,7 @@ func getInlineStyle(node map[string]any) string {
 	}
 
 	if node["tag"] == "img" {
-		stylesAndValues = fmt.Sprintf(`%s object-fit: cover;`, stylesAndValues)
+		stylesAndValues = fmt.Sprintf(`%s object-fit: contain;`, stylesAndValues)
 		stylesAndValues = fmt.Sprintf(`%s max-width: 100%%;`, stylesAndValues)
 		stylesAndValues = fmt.Sprintf(`%s max-height: 100%%;`, stylesAndValues)
 	}

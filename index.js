@@ -341,18 +341,31 @@ function deleteNodeInSiteRep(nodeId) {
         throw new Error(`deleteNodeInSiteRep: node with nodeId: ${nodeId} doesnt exist in siterep`)
     }
 
-    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
-    if (!parentNode) {
-        throw new Error("deleteNodeInSiteRep: parent node not found")
-    }
+    let parentlessIds = [headerNodeId, footerNodeId]
 
-    if (!parentNode.children[nodeId]) {
-        throw new Error("deleteNodeInSiteRep: child not found in parent") 
+    if (parentlessIds.includes(nodeId)) {
+        switch (nodeId) {
+            case headerNodeId:
+                delete SITE_REP.header
+                break
+            case footerNodeId:
+                delete SITE_REP.footer
+        }
+    } else {
+
+        let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+        if (!parentNode) {
+            throw new Error("deleteNodeInSiteRep: parent node not found")
+        }
+
+        if (!parentNode.children[nodeId]) {
+            throw new Error("deleteNodeInSiteRep: child not found in parent") 
+        }
+        
+        // TO-DO
+        // visit all nodes in subtree, if image, delete src at backend
+        delete parentNode.children[nodeId]
     }
-    
-    // TO-DO
-    // visit all nodes in subtree, if image, delete src at backend
-    delete parentNode.children[nodeId]
 }
 
 function setContent(nodeId, value) {
@@ -568,7 +581,7 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
         childEl.setAttribute("width", "100%")
         childEl.setAttribute("height", "100%")
         childEl.style.display = "inline-block"
-        childEl.style.objectFit = "cover"   // ---
+        childEl.style.objectFit = "contain"   // ---
         childEl.style.borderRadius = "inherit"  // ---
         let newNode = {tag, width: "100%", height: "100%", edgeRounding: "inherit"}
         newNode.nodeId = childNodeId
@@ -1250,14 +1263,15 @@ async function makeAddPathRequest(path) {
     url = url.replace(/\/\//g, "/")
 
     let relativePath = window.location.pathname + path
-    let reqPayload = {path: relativePath.replace(/\/\//g, "/")}
+    relativePath = relativePath.replace(/\/\//g, "/")
+    let reqPayload = {path: relativePath}
 
     let res = await postData(url, {data: reqPayload})
     if (res.error) {
         alert(res.error)
-        window.location = relativePath
+        window.location.href = '/'
     } else {
-        window.location = relativePath
+        window.location.href = baseUrl + relativePath
     }
 }
 

@@ -10,6 +10,7 @@ import (
 	"strings"
 
 	"github.com/Iyusuf40/goBackendUtils"
+	"github.com/Iyusuf40/goBackendUtils/storage"
 
 	"github.com/labstack/echo/v4"
 	"github.com/labstack/echo/v4/middleware"
@@ -17,17 +18,24 @@ import (
 
 const PORT = "3000"
 
+var defaultUserId = "default_user"
+
 var backendUtils = &goBackendUtils.Utils{}
 
 var SITE_REP = make(map[string]map[string]any)
 var siteRepStore, _ = backendUtils.GetDB_Engine("file", "siterep", "siterep")
+var newBodySiteRep = map[string]any{
+	"tag": "body",
+	"children": map[string]any{
+		"0": map[string]any{
+			"tag":    "main",
+			"nodeId": "0",
+		},
+	}}
 
 func initSiteRep() {
-	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
-	if len(updatedSiteRepList) != 1 {
-		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
-	}
-	if len(updatedSiteRepList) != 1 {
+	siteRepListForUser, _ := siteRepStore.GetRecordsByField("userId", defaultUserId)
+	if len(siteRepListForUser) != 1 {
 		siteRepStore.Save(DefaultSiteRep)
 		siteRepStore.Commit()
 	}
@@ -168,20 +176,12 @@ func addPath(c echo.Context) error {
 	}
 
 	siteRep := getSiteRepFromStore()
-	if _, exists := siteRep[path]; exists {
+	if segment, exists := siteRep[path]; exists && segment != nil {
 		response["error"] = fmt.Sprintf("path: %s already exists", path)
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	updateSiteRepInStore(path, map[string]any{
-		"tag": "body",
-		"children": map[string]any{
-			"0": map[string]any{
-				"tag":    "main",
-				"nodeId": "0",
-			},
-		}},
-	)
+	updateSiteRepInStore(defaultUserId, path, newBodySiteRep)
 
 	siteRep = getSiteRepFromStore()
 
@@ -220,7 +220,7 @@ func deletePath(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	updateSiteRepInStore(path, nil)
+	updateSiteRepInStore(defaultUserId, path, nil)
 
 	cwd, _ := os.Getwd()
 
@@ -252,27 +252,31 @@ func updatePath(c echo.Context) error {
 
 	err := BuildHtml(path, data)
 	delete(data, "path")
-	updateSiteRepInStore(path, data[path].(map[string]any))
-
+	payloadHeader, _ := data["header"].(map[string]any)
 	prevHeader := getHeaderFromSiteRepInStore()
-	if header, ok := data["header"].(map[string]any); ok {
-		if prevHeader == nil || !reflect.DeepEqual(prevHeader, header) {
-			updateSiteRepInStore("header", header)
-			rebuildAllPaths()
+
+	payloadFooter, _ := data["footer"].(map[string]any)
+	prevFooter := getFooterFromSiteRepInStore()
+
+	updateSiteRepInStore(defaultUserId, path, data[path].(map[string]any))
+
+	if !reflect.DeepEqual(prevHeader, payloadHeader) {
+		if header, ok := data["header"].(map[string]any); ok {
+			updateSiteRepInStore(defaultUserId, "header", header)
+		} else {
+			updateSiteRepInStore(defaultUserId, "header", nil)
 		}
-	} else if prevHeader != nil { // header deleted
-		updateSiteRepInStore("header", nil)
 		rebuildAllPaths()
+	} else {
+		fmt.Println("did not enter")
 	}
 
-	prevFooter := getFooterFromSiteRepInStore()
-	if footer, ok := data["footer"].(map[string]any); ok {
-		if prevFooter == nil || !reflect.DeepEqual(prevFooter, footer) {
-			updateSiteRepInStore("footer", footer)
-			rebuildAllPaths()
+	if !reflect.DeepEqual(prevFooter, payloadFooter) {
+		if footer, ok := data["footer"].(map[string]any); ok {
+			updateSiteRepInStore(defaultUserId, "footer", footer)
+		} else {
+			updateSiteRepInStore(defaultUserId, "footer", nil)
 		}
-	} else if prevFooter != nil { // footer deleted
-		updateSiteRepInStore("footer", nil)
 		rebuildAllPaths()
 	}
 
@@ -310,74 +314,46 @@ func getSiteRep(c echo.Context) error {
 }
 
 func getSiteRepFromStore() map[string]any {
-	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
-	if len(updatedSiteRepList) == 1 {
-		return updatedSiteRepList[0]
-	}
-	updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
-	if len(updatedSiteRepList) == 1 {
-		return updatedSiteRepList[0]
+	siteRepListForUser, _ := siteRepStore.GetRecordsByField("userId", defaultUserId)
+	if len(siteRepListForUser) == 1 {
+		return siteRepListForUser[0]
 	}
 	panic("getSiteRepFromStore: no sitrep in db")
 }
 
-func updateSiteRepInStore(field string, value map[string]any) {
-	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
-	if len(updatedSiteRepList) != 1 {
-		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
-	}
-	if len(updatedSiteRepList) != 1 {
-		panic("updateSiteRepInStore: no siterep in db")
-	}
-	updatedSiteRep := updatedSiteRepList[0]
-	updatedSiteRep[field] = value
+func updateSiteRepInStore(userId, field string, value map[string]any) {
+	id := siteRepStore.GetIdByFieldAndValue("userId", userId)
 
-	if value == nil {
-		delete(updatedSiteRep, field)
+	if id == "" {
+		panic("updateSiteRepInStore: no siterep for user with userId " + userId)
 	}
 
-	updatedSiteRep["updated"] = true
-	deletePreviousSiteRep()
-	siteRepStore.Save(updatedSiteRep)
+	siteRepStore.Update(id, storage.UpdateDesc{Field: field, Value: value})
+
 	siteRepStore.Commit()
 }
 
-func deletePreviousSiteRep() {
-	id := siteRepStore.GetIdByFieldAndValue("updated", true)
-	if id == "" {
-		id = siteRepStore.GetIdByFieldAndValue("title", "mini-cms")
-	}
-	if id == "" {
-		panic("deletePreviousSiteRep: no sitrep in db")
-	}
-	siteRepStore.Delete(id)
-}
-
 func getHeaderFromSiteRepInStore() map[string]any {
-	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
-	if len(updatedSiteRepList) != 1 {
-		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
-	}
-	if len(updatedSiteRepList) != 1 {
+	siteRepListForUser, _ := siteRepStore.GetRecordsByField("userId", defaultUserId)
+	if len(siteRepListForUser) != 1 {
 		panic("getHeaderFromSiteRepInStore: no siterep in db")
 	}
-	updatedSiteRep := updatedSiteRepList[0]
-	if header, ok := updatedSiteRep["header"].(map[string]any); ok {
+
+	siteRepForUser := siteRepListForUser[0]
+	if header, ok := siteRepForUser["header"].(map[string]any); ok {
 		return header
 	}
 	return nil
 }
 
 func getFooterFromSiteRepInStore() map[string]any {
-	updatedSiteRepList, _ := siteRepStore.GetRecordsByField("updated", true)
-	if len(updatedSiteRepList) != 1 {
-		updatedSiteRepList, _ = siteRepStore.GetRecordsByField("title", "mini-cms")
-	}
-	if len(updatedSiteRepList) != 1 {
+	siteRepListForUser, _ := siteRepStore.GetRecordsByField("userId", defaultUserId)
+
+	if len(siteRepListForUser) != 1 {
 		panic("getFooterFromSiteRepInStore: no siterep in db")
 	}
-	updatedSiteRep := updatedSiteRepList[0]
-	if footer, ok := updatedSiteRep["footer"].(map[string]any); ok {
+	siteRepForUser := siteRepListForUser[0]
+	if footer, ok := siteRepForUser["footer"].(map[string]any); ok {
 		return footer
 	}
 	return nil
