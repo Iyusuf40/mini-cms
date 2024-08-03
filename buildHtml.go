@@ -49,22 +49,25 @@ var htmlAttributesToSet = []string{
 var nodeClass = "__node"
 var mainElementNodeId = "0"
 
-var DefaultSiteRep = map[string]any{
-	"title":  "mini-cms",
-	"userId": defaultUserId,
-	"/": map[string]any{
-		"tag": "body",
-		"children": map[string]any{
-			"0": map[string]any{
-				"tag":    "main",
-				"nodeId": "0",
+func getDefaultSiteRep(userId, projectName string) map[string]any {
+	DefaultSiteRep := map[string]any{
+		"title": "mini-cms",
+		"/" + filepath.Join(userId, projectName): map[string]any{
+			"tag": "body",
+			"children": map[string]any{
+				"0": map[string]any{
+					"tag":    "main",
+					"nodeId": "0",
+				},
 			},
 		},
-	},
+	}
+
+	return DefaultSiteRep
 }
 
-func rebuildAllPaths() error {
-	siteRep := getSiteRepFromStore() // Fetch the current site representation from the store
+func rebuildAllPaths(userId, projectName string) error {
+	siteRep := getSiteRepFromStore(userId, projectName) // Fetch the current site representation from the store
 
 	for path := range siteRep {
 
