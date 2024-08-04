@@ -77,38 +77,6 @@ func ServeSite() {
 	e.Logger.Fatal(e.Start(":" + PORT))
 }
 
-func getProjectBase(c echo.Context) string {
-	userId, projectName := getUserIdAndProjectFromQueryParams(c)
-	return filepath.Join(string(filepath.Separator), userId, projectName)
-}
-
-func getUserIdAndProjectFromQueryParams(c echo.Context) (string, string) {
-	userId := c.QueryParam("userId")
-	projectName := c.QueryParam("projectName")
-	if userId == "" || projectName == "" {
-		return getUserIdAndProjectFromPath(c)
-	}
-	return userId, projectName
-}
-
-func getUserIdAndProjectFromPath(c echo.Context) (string, string) {
-	return getUserIdAndProjectFromPathString(c.Request().URL.Path)
-}
-
-func getUserIdAndProjectFromPathString(path string) (string, string) {
-	if strings.HasPrefix(path, "/") {
-		path = strings.Replace(path, "/", "", 1)
-	}
-
-	segments := strings.Split(path, "/")
-
-	if len(segments) < 2 {
-		return "", ""
-	}
-	userId, projectName := segments[0], segments[1]
-	return userId, projectName
-}
-
 func serveRoot(c echo.Context) error {
 	return c.File(filepath.Join("index.html"))
 }
@@ -376,6 +344,38 @@ func getSiteRep(c echo.Context) error {
 
 	c.Response().Header().Set("Cache-Control", "no-cache, no-store, must-revalidate")
 	return c.JSON(http.StatusOK, siteRepOfPath)
+}
+
+func getProjectBase(c echo.Context) string {
+	userId, projectName := getUserIdAndProjectFromQueryParams(c)
+	return filepath.Join(string(filepath.Separator), userId, projectName)
+}
+
+func getUserIdAndProjectFromQueryParams(c echo.Context) (string, string) {
+	userId := c.QueryParam("userId")
+	projectName := c.QueryParam("projectName")
+	if userId == "" || projectName == "" {
+		return getUserIdAndProjectFromPath(c)
+	}
+	return userId, projectName
+}
+
+func getUserIdAndProjectFromPath(c echo.Context) (string, string) {
+	return getUserIdAndProjectFromPathString(c.Request().URL.Path)
+}
+
+func getUserIdAndProjectFromPathString(path string) (string, string) {
+	if strings.HasPrefix(path, "/") {
+		path = strings.Replace(path, "/", "", 1)
+	}
+
+	segments := strings.Split(path, "/")
+
+	if len(segments) < 2 {
+		return "", ""
+	}
+	userId, projectName := segments[0], segments[1]
+	return userId, projectName
 }
 
 func getSiteRepFromStore(userId, projectName string) map[string]any {

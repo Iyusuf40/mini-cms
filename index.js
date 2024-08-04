@@ -49,6 +49,7 @@ const footerNodeId = "1"
 
 var STEP  = 2
 var SITE_REP = null
+var lastColorSent = ""
 
 var baseUrl = "http://localhost:3000"
 
@@ -72,7 +73,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
 
     let toggleBtn = document.createElement("button")
     toggleBtn.classList.add("toggle-button")
-    if (nodeId === "0") {
+    if (nodeId === mainNodeId) {
         toggleBtn.style.zIndex = "100"
     }
     toggleBtn.textContent = "+"
@@ -196,12 +197,46 @@ function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
     if (!nodeId) return
     let collapsible = makeElementDescriptionCollapsible(nodeId, nodeEl.tagName === "MAIN")
+    collapsible.style.backgroundColor = nodeEl.tagName === "MAIN" ? "red" : getRandomColor()
     nodeEl.appendChild(collapsible)
+    setCollapsibleToggleBtnWidthRelativeToParent(nodeId)
     nodeEl.addEventListener('contextmenu', function(e) {
         e.preventDefault()
         let collapsibleTglBtn = getCollapsibleToggleBtn(nodeId)
         collapsibleTglBtn.click()
     })
+}
+
+function setCollapsibleToggleBtnWidthRelativeToParent(nodeId) {
+    let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+    if (!parentNode) return
+
+    let parentNodeCollapsibleToggleBtn = getCollapsibleToggleBtn(parentNode.nodeId)
+    if (!parentNodeCollapsibleToggleBtn) return
+    let parentNodeCollapsibleToggleBtnWidth = 
+        getCssProp(parentNodeCollapsibleToggleBtn, "width").replace("px", "")
+    let parentNodeCollapsibleToggleBtnHeight = 
+        getCssProp(parentNodeCollapsibleToggleBtn, "height").replace("px", "")
+    
+    let nodeCollapsibleToggleBtn = getCollapsibleToggleBtn(nodeId)
+
+    if (!nodeCollapsibleToggleBtn) return
+
+    let smallerWidth = Math.max(16, Number(parentNodeCollapsibleToggleBtnWidth) - 3)
+    let smallerHeight = Math.max(16, Number(parentNodeCollapsibleToggleBtnHeight) - 3)
+
+    nodeCollapsibleToggleBtn.style.width = `${smallerWidth}px`
+    nodeCollapsibleToggleBtn.style.height = `${smallerHeight}px`
+    nodeCollapsibleToggleBtn.style.lineHeight = `${Math.round(smallerHeight / 2)}px`
+    nodeCollapsibleToggleBtn.style.zIndex = `${Math.round(10000000000 / smallerWidth)}`  // the smaller the size the larger the zIndex
+}
+
+function getRandomColor() {
+    const colors = ['yellow', 'green', 'blue', 'cyan'];
+    const randomIndex = Math.floor(Math.random() * colors.length);
+    if (lastColorSent !== colors[randomIndex]) return colors[randomIndex]
+    lastColorSent = colors[randomIndex]
+    return getRandomColor()
 }
 
 function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
@@ -236,16 +271,18 @@ function addEventListenerToNode(node) {
 }
 
 window.onload = function () {
-    document.querySelectorAll(".__node").forEach( nodeEl => {
-        addEventListenerToNode(nodeEl)
-        appendElementDescriptionCollapsible(nodeEl)
-    })
     setSiteRep()
+    .then(() => {
+        document.querySelectorAll(".__node").forEach( nodeEl => {
+            addEventListenerToNode(nodeEl)
+            appendElementDescriptionCollapsible(nodeEl)
+        })
+    })
     addPublishSiteRepBtn()
 }
 
 async function setSiteRep() {
-    fetch(baseUrl + "/siterep?path=" + window.location.pathname, {
+    return fetch(baseUrl + "/siterep?path=" + window.location.pathname, {
         headers: {
             'Cache-Control': 'no-cache, no-store, must-revalidate', // HTTP/1.1
             'Pragma': 'no-cache', // HTTP/1.0
@@ -259,6 +296,7 @@ async function setSiteRep() {
     })
     .then(siterep => {
         SITE_REP = siterep
+        return siterep
     })
     .catch(err => {
         alert("no project found")
@@ -581,8 +619,8 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
         childEl.setAttribute("width", "100%")
         childEl.setAttribute("height", "100%")
         childEl.style.display = "inline-block"
-        childEl.style.objectFit = "contain"   // ---
-        childEl.style.borderRadius = "inherit"  // ---
+        childEl.style.objectFit = "contain"
+        childEl.style.borderRadius = "inherit"
         let newNode = {tag, width: "100%", height: "100%", edgeRounding: "inherit"}
         newNode.nodeId = childNodeId
         imageContainer.appendChild(childEl)
@@ -606,19 +644,21 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
     childEl.classList.add("__node")
 
     childEl.setAttribute("nodeId", childNodeId)
-    appendElementDescriptionCollapsible(childEl)
     switch (position) {
         case "before":
             addChildToSiteRep(parentNode.nodeId, newNode)
+            appendElementDescriptionCollapsible(childEl)
             nodeEl.before(childEl)
             break
         case "after":
             addChildToSiteRep(parentNode.nodeId, newNode)
+            appendElementDescriptionCollapsible(childEl)
             nodeEl.after(childEl)
             break
         default:
             nodeEl.appendChild(childEl) 
             addChildToSiteRep(nodeId, newNode)
+            appendElementDescriptionCollapsible(childEl)
     } 
 }
 

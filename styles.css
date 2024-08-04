@@ -18,18 +18,19 @@ main {
 }
 
 .toggle-button {
-    background-color: #4CAF50;
+    background-color: inherit;
     border: none;
     color: white;
-    padding: 10px 20px;
+    padding: 5px;
     text-align: center;
     text-decoration: none;
     display: block;
-    width: 20px;
-    font-size: 16px;
-    margin: 4px 2px;
+    width: 30px;
+    height: 30px;
+    line-height: 15x;
+    font-size: 1rem;
     cursor: pointer;
-    border-radius: 12px;
+    border-radius: 100%;
     transition: background-color 0.3s;
     position: absolute;
     right: 5px;
