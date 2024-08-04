@@ -96,7 +96,10 @@ func getUserIdAndProjectFromPath(c echo.Context) (string, string) {
 }
 
 func getUserIdAndProjectFromPathString(path string) (string, string) {
-	path = strings.Replace(path, "/", "", 1)
+	if strings.HasPrefix(path, "/") {
+		path = strings.Replace(path, "/", "", 1)
+	}
+
 	segments := strings.Split(path, "/")
 
 	if len(segments) < 2 {
@@ -226,7 +229,7 @@ func addPath(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	updateSiteRepInStore(defaultUserId, projectName, path, newBodySiteRep)
+	updateSiteRepInStore(userId, projectName, path, newBodySiteRep)
 
 	siteRep = getSiteRepFromStore(userId, projectName)
 
@@ -271,7 +274,7 @@ func deletePath(c echo.Context) error {
 		return c.JSON(http.StatusBadRequest, response)
 	}
 
-	updateSiteRepInStore(defaultUserId, projectName, path, nil)
+	updateSiteRepInStore(userId, projectName, path, nil)
 
 	cwd, _ := os.Getwd()
 
@@ -313,31 +316,29 @@ func updatePath(c echo.Context) error {
 
 	err := BuildHtml(path, data)
 	delete(data, "path")
-	payloadHeader, _ := data["header"].(map[string]any)
 
+	payloadHeader, _ := data["header"].(map[string]any)
 	prevHeader := getHeaderFromSiteRepInStore(userId, projectName)
 
 	payloadFooter, _ := data["footer"].(map[string]any)
 	prevFooter := getFooterFromSiteRepInStore(userId, projectName)
 
-	updateSiteRepInStore(defaultUserId, projectName, path, data[path].(map[string]any))
+	updateSiteRepInStore(userId, projectName, path, data[path].(map[string]any))
 
 	if !reflect.DeepEqual(prevHeader, payloadHeader) {
 		if header, ok := data["header"].(map[string]any); ok {
-			updateSiteRepInStore(defaultUserId, projectName, "header", header)
+			updateSiteRepInStore(userId, projectName, "header", header)
 		} else {
-			updateSiteRepInStore(defaultUserId, projectName, "header", nil)
+			updateSiteRepInStore(userId, projectName, "header", nil)
 		}
 		rebuildAllPaths(userId, projectName)
-	} else {
-		fmt.Println("did not enter")
 	}
 
 	if !reflect.DeepEqual(prevFooter, payloadFooter) {
 		if footer, ok := data["footer"].(map[string]any); ok {
-			updateSiteRepInStore(defaultUserId, projectName, "footer", footer)
+			updateSiteRepInStore(userId, projectName, "footer", footer)
 		} else {
-			updateSiteRepInStore(defaultUserId, projectName, "footer", nil)
+			updateSiteRepInStore(userId, projectName, "footer", nil)
 		}
 		rebuildAllPaths(userId, projectName)
 	}
@@ -401,7 +402,7 @@ func updateSiteRepInStore(userId, projectName, field string, value map[string]an
 
 func getHeaderFromSiteRepInStore(userId, projectName string) map[string]any {
 	siteRep := getSiteRepFromStore(userId, projectName)
-	if len(siteRep) != 1 {
+	if len(siteRep) == 0 {
 		panic("getHeaderFromSiteRepInStore: no siterep in db")
 	}
 
@@ -414,7 +415,7 @@ func getHeaderFromSiteRepInStore(userId, projectName string) map[string]any {
 func getFooterFromSiteRepInStore(userId, projectName string) map[string]any {
 	siteRep := getSiteRepFromStore(userId, projectName)
 
-	if len(siteRep) != 1 {
+	if len(siteRep) == 1 {
 		panic("getFooterFromSiteRepInStore: no siterep in db")
 	}
 

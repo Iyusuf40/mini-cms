@@ -1249,7 +1249,7 @@ async function commitSiteRep() {
 
     // TO-DO check if changed so as not to traverse network
 
-    const url = baseUrl + "/"
+    const url = baseUrl + path
 
     let res = await putData(url, {data: pathSiteRep})
     if (res.error) {
@@ -1259,11 +1259,11 @@ async function commitSiteRep() {
 
 async function makeAddPathRequest(path) {
 
-    let url = baseUrl + window.location.pathname + path
-    url = url.replace(/\/\//g, "/")
-
     let relativePath = window.location.pathname + path
     relativePath = relativePath.replace(/\/\//g, "/")
+
+    let url = baseUrl + relativePath
+    
     let reqPayload = {path: relativePath}
 
     let res = await postData(url, {data: reqPayload})
@@ -1271,7 +1271,7 @@ async function makeAddPathRequest(path) {
         alert(res.error)
         window.location.href = '/'
     } else {
-        window.location.href = baseUrl + relativePath
+        window.location = baseUrl + relativePath
     }
 }
 
