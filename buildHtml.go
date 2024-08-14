@@ -161,10 +161,7 @@ func convertNodeToHtml(node map[string]any) string {
 	openTag := ""
 	closeTag := ""
 
-	if tag == "body" || tag == "main" {
-		openTag = ""
-		closeTag = ""
-	} else {
+	if tag != "body" && tag != "main" {
 		openTag = makeOpenTag(tag, node)
 		closeTag = makeCloseTag(tag)
 	}
@@ -172,8 +169,9 @@ func convertNodeToHtml(node map[string]any) string {
 	content := getContent(node)
 	children := getChildrenHtml(node)
 	extendedHtml := getExtendedHtml(node)
+	addedScript := getAddedScript(node)
 
-	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s", openTag, content, children, extendedHtml, closeTag)
+	return fmt.Sprintf("%s\n%s\n%s\n%s\n%s\n%s", openTag, content, children, extendedHtml, addedScript, closeTag)
 }
 
 func buildHeader(node map[string]any) string {
@@ -246,6 +244,16 @@ func getSortedKeysOfMap(mapp map[string]any) []string {
 func getExtendedHtml(node map[string]any) string {
 	if extendedHtml, ok := node["extendedHtml"].(string); ok {
 		return extendedHtml
+	}
+	return ""
+}
+
+func getAddedScript(node map[string]any) string {
+	if addedScript, ok := node["addScript"].(string); ok {
+		openTag := "<script>"
+		script := fmt.Sprintf("%s\n\t %s", openTag, addedScript)
+		script = fmt.Sprintf("%s \n</script>", script)
+		return script
 	}
 	return ""
 }

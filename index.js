@@ -1,5 +1,5 @@
 const collapsibleFieldElementTypeAction = [
-    ["content", "textarea", setContent],
+    ["set content", "textarea", setContent],
     ["add child", "button", addChild],
     ["add node before", "button", addNodeBefore],
     ["add node after", "button", addNodeAfter],
@@ -31,8 +31,9 @@ const collapsibleFieldElementTypeAction = [
     ["paddingLeft", "input:text", setPaddingLeft],
     ["paddingRight", "input:text", setPaddingRight],
     ["edgeRounding", "input:text", setEdgeRounding],
-    ["extendCss", "input:text", setExtendCss],
-    ["extendHtml", "input:text", setExtendHtml],
+    ["extend Css", "input:text", setExtendCss],
+    ["extend Html", "textarea", setExtendHtml],
+    ["add script", "textarea", addScript],
     ["step", "input:text", setStep],
     ["add path", "input:text", addPath],
     ["delete path", "button", deletePath],
@@ -144,7 +145,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
         } else if (tag === "textarea") {
             let fieldEl = document.createElement(tag)
             fieldEl.style.display = "block"
-            fieldEl.placeholder = "text content"
+            fieldEl.placeholder = text
 
             collapsibleContainer.appendChild(fieldEl)
 
@@ -334,7 +335,12 @@ function getSiteRepNodeByNodeId(nodeId) {
     if (SITE_REP.header?.nodeId === nodeId) return SITE_REP.header
     if (SITE_REP.footer?.nodeId === nodeId) return SITE_REP.footer
 
-    let relevantNode = SITE_REP[window.location.pathname]
+    let path = window.location.pathname
+    if (path !== "/" && path[path.length - 1] === "/") {
+        path = path.slice(0, path.length - 1)
+    }
+
+    let relevantNode = SITE_REP[path]
     return recursivelyFindNodeWithId(relevantNode, nodeId)
 }
 
@@ -353,7 +359,12 @@ function getSiteRepNodeParentByChildNodeId(nodeId) {
         throw new Error("getSiteRepNodeParentByChildNodeId: SITE_REP should not be null")
     }
 
-    let relevantNode = SITE_REP[window.location.pathname]
+    let path = window.location.pathname
+    if (path !== "/" && path[path.length - 1] === "/") {
+        path = path.slice(0, path.length - 1)
+    }
+
+    let relevantNode = SITE_REP[path]
     return recursivelyFindNodeWithId(relevantNode, nodeId, true)
 }
 
@@ -428,9 +439,6 @@ function setContent(nodeId, value) {
 }
 
 function closeCollapsible(nodeId) {
-    let nodeEl = getnodeElementByNodeId(nodeId)
-
-    if (!nodeEl) return
     let collapsibleToggleBtn = getCollapsibleToggleBtn(nodeId)
     if (collapsibleToggleBtn.textContent === "-") collapsibleToggleBtn.click()
 }
@@ -1187,12 +1195,35 @@ function convertToCamelCase(separatedByHyphen) {
 
 function setExtendHtml(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
-
     if (!nodeEl) return
     if (!value.endsWith("::done")) return
     value = value.replace("::done", "")
     nodeEl.insertAdjacentHTML('beforeend', value);
     updateSiteRep(nodeId, "extendedHtml", value)
+    closeCollapsible(nodeId)
+}
+
+function addScript(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+    if (!nodeEl) return
+    if (!value.endsWith("::done")) return
+    value = value.replace("::done", "")
+    value = value.replace("<script>", "").replace("</script>", "")
+    // allow script targeted at current node
+    value = value.replace(/nodeId/g, `"${nodeId}"`)
+    let script = document.createElement("script")
+    let storedValue = `window.addEventListener('load', function() {
+        ${value}
+    });`
+    script.innerHTML = value
+    nodeEl.appendChild(script);
+    updateSiteRep(nodeId, "addScript", storedValue)
+    closeCollapsible(nodeId)
+}
+
+function replaceAllOccurrences(str, find, replace) {
+    const regex = new RegExp(find, 'g');
+    return str.replace(regex, replace);
 }
 
 function setStep(nodeId, value) {
@@ -1214,6 +1245,10 @@ function deletePath(nodeId, value) {
     let path = window.location.pathname
 
     if (path === "/") return alert("cannot delete root path")
+
+    if (path[path.length - 1] === "/") {
+        path = path.slice(0, path.length - 1)
+    }
 
     let confirm = prompt("are you sure you want to delete this route? [y]/[n]")
     if (confirm.toLowerCase().trim() !== "y") return
@@ -1276,6 +1311,9 @@ async function putData(url, data) {
 
 async function commitSiteRep() {
     let path = window.location.pathname
+    if (path !== "/" && path[path.length - 1] === "/") {
+        path = path.slice(0, path.length - 1)
+    }
     if (!SITE_REP[path]) return
     
     // prevent each path from having root properties

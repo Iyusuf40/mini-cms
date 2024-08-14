@@ -330,6 +330,10 @@ func getSiteRep(c echo.Context) error {
 
 	siterep := getSiteRepFromStore(userId, projectName)
 
+	if path != "/" && path[len(path)-1] == '/' {
+		path = path[:len(path)-1]
+	}
+
 	if segment, ok := siterep[path].(map[string]any); ok {
 		siteRepOfPath[path] = segment
 	}
