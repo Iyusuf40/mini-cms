@@ -24,7 +24,6 @@ var defaultUserId = "default_user"
 var defaultProjectName = "default_project"
 
 var backendUtils = &goBackendUtils.Utils{}
-
 var SITE_REP = make(map[string]map[string]any)
 var siteRepStore, _ = backendUtils.GetDB_Engine("file", "siterep", "siterep")
 

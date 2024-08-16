@@ -607,7 +607,6 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
     } else if (tag === "img") {
         let newNodeId = Date.now().toString()
         appendContentToNodeEl(nodeId, "div", "", newNodeId, position)
-        decreaseWidth(newNodeId, 100)
         let imageContainer = getnodeElementByNodeId(newNodeId)
         if (!imageContainer) {
             alert(`appendContentToNodeEl: element with newNodeId ${newNodeId} does not exist`)
