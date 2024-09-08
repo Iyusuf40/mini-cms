@@ -1,5 +1,5 @@
 const collapsibleFieldElementTypeAction = [
-    ["set content", "textarea", setContent],
+    ["set content", "textarea", setContent, "text"],
     ["add child", "button", addChild],
     ["add node before", "button", addNodeBefore],
     ["add node after", "button", addNodeAfter],
@@ -16,7 +16,7 @@ const collapsibleFieldElementTypeAction = [
     ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
     ["orientation", "input:radio:vertical:horizontal", setOrientation],
-    ["gap", "input:text", setGap],
+    ["gap", "input:text", setGap, "gap"],
     ["align", "input:radio:left:center:right", setTextAlignment],
     ["position", "input:radio:start:middle:end", setSelfAlignment],
     ["shift up", "button", shiftUp],
@@ -24,17 +24,17 @@ const collapsibleFieldElementTypeAction = [
     ["shift left", "button", shiftLeft],
     ["shift right", "button", shiftRight],
     ["duplicate", "button", duplicateNode],
-    ["margin", "input:text", setMargin],
-    ["padding", "input:text", setPadding],
-    ["paddingTop", "input:text", setPaddingTop],
-    ["paddingBottom", "input:text", setPaddingBottom],
-    ["paddingLeft", "input:text", setPaddingLeft],
-    ["paddingRight", "input:text", setPaddingRight],
-    ["edgeRounding", "input:text", setEdgeRounding],
-    ["extend Css", "input:text", setExtendCss],
-    ["extend Html", "textarea", setExtendHtml],
-    ["add script", "textarea", addScript],
-    ["step", "input:text", setStep],
+    ["margin", "input:text", setMargin, "margin"],
+    ["padding", "input:text", setPadding, "padding"],
+    ["paddingTop", "input:text", setPaddingTop, "paddingTop"],
+    ["paddingBottom", "input:text", setPaddingBottom, "paddingBottom"],
+    ["paddingLeft", "input:text", setPaddingLeft, "paddingLeft"],
+    ["paddingRight", "input:text", setPaddingRight, "paddingRight"],
+    ["edgeRounding", "input:text", setEdgeRounding, "edgeRounding"],
+    ["extend Css", "input:text", setExtendCss, "extendedStyle"],
+    ["extend Html", "textarea", setExtendHtml, "extendedHtml"],
+    ["add script", "textarea", addScript, "addScript"],
+    ["step", "input:text", setStep, "STEP"],
     ["add path", "input:text", addPath],
     ["delete path", "button", deletePath],
 ]
@@ -88,7 +88,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
     if (isMainElement) appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer)
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
-        let [text, elementType, action] = collapsibleFieldDesc
+        let [text, elementType, action, field] = collapsibleFieldDesc
         let tag = elementType
         if (elementType.startsWith("input")) {
             tag = "input"
@@ -135,7 +135,10 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
                 fieldContainer.appendChild(fieldEl)
                 collapsibleContainer.appendChild(fieldContainer)
                 
-                if (inputType === "text") fieldEl.onclick = (e) => e.preventDefault()
+                if (inputType === "text") {
+                    fieldEl.onclick = (e) => e.preventDefault()
+                    fieldEl.value = field ? getCurrentFieldValueFromSiteRep(nodeId, field) || "" : ""
+                }
                 fieldEl.oninput = (e) => {
                     e.preventDefault()
                     action(nodeId, e.target.value)
@@ -146,6 +149,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
             let fieldEl = document.createElement(tag)
             fieldEl.style.display = "block"
             fieldEl.placeholder = text
+            fieldEl.value = field ? getCurrentFieldValueFromSiteRep(nodeId, field) || "" : ""
 
             collapsibleContainer.appendChild(fieldEl)
 
@@ -170,6 +174,11 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
     }
 
     return collapsibleContainersContainer
+}
+
+function getCurrentFieldValueFromSiteRep(nodeId, field) {
+    let node = getSiteRepNodeByNodeId(nodeId)
+    if (node) return node[field]
 }
 
 function appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer) {
