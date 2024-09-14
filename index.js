@@ -3,15 +3,18 @@ const collapsibleFieldElementTypeAction = [
     ["add child", "button", addChild],
     ["add node before", "button", addNodeBefore],
     ["add node after", "button", addNodeAfter],
+    ["duplicate", "button", duplicateNode],
+    ["delete node", "button", deleteNode],
     ["add heading", "button", addHeading],
     ["add subheading", "button", addSubHeading],
-    ["delete node", "button", deleteNode],
     ["increase font size", "button", increaseFontSize],
     ["decrease font size", "button", decreaseFontSize],
     ["increase width", "button", increaseWidth],
     ["decrease width", "button", decreaseWidth],
+    ["width", "input:text", setWidth, "width"],
     ["increase height", "button", increaseHeight],
     ["decrease height", "button", decreaseHeight],
+    ["height", "input:text", setHeight, "height"],
     ["font color", "input:color", setFontColor],
     ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
@@ -23,7 +26,6 @@ const collapsibleFieldElementTypeAction = [
     ["shift down", "button", shiftDown],
     ["shift left", "button", shiftLeft],
     ["shift right", "button", shiftRight],
-    ["duplicate", "button", duplicateNode],
     ["margin", "input:text", setMargin, "margin"],
     ["padding", "input:text", setPadding, "padding"],
     ["paddingTop", "input:text", setPaddingTop, "paddingTop"],
@@ -31,6 +33,7 @@ const collapsibleFieldElementTypeAction = [
     ["paddingLeft", "input:text", setPaddingLeft, "paddingLeft"],
     ["paddingRight", "input:text", setPaddingRight, "paddingRight"],
     ["edgeRounding", "input:text", setEdgeRounding, "edgeRounding"],
+    ["make node expandable", "button", makeNodeExpandable],
     ["extend Css", "input:text", setExtendCss, "extendedStyle"],
     ["extend Html", "textarea", setExtendHtml, "extendedHtml"],
     ["add script", "textarea", addScript, "addScript"],
@@ -51,6 +54,8 @@ const footerNodeId = "1"
 var STEP  = 2
 var SITE_REP = null
 var lastColorSent = ""
+
+let increaseMillisecondsDifference = 0
 
 var baseUrl = "http://localhost:3000"
 
@@ -326,6 +331,19 @@ function addPublishSiteRepBtn() {
     htmlEl.appendChild(publishSiteBtn)
 }
 
+document.addEventListener("keydown", (e) => {
+	if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+		return;
+	}
+
+	if (e.ctrlKey && e.key.toLowerCase() === "d") {
+        e.preventDefault()
+		document.querySelectorAll(".toggle-button").forEach(e => {
+            e.classList.toggle("hide")
+        })
+	}
+});
+
 function getnodeElementByNodeId(nodeId) {
     const nodes = document.querySelectorAll(".__node")
     for (let i = 0; i < nodes.length; i++) {
@@ -347,6 +365,20 @@ function getSiteRepNodeByNodeId(nodeId) {
     let path = window.location.pathname
     if (path !== "/" && path[path.length - 1] === "/") {
         path = path.slice(0, path.length - 1)
+    }
+
+    let header = SITE_REP["header"]
+
+    if (header) {
+        let node = recursivelyFindNodeWithId(header, nodeId)
+        if (node) return node
+    }
+
+    let footer = SITE_REP["footer"]
+
+    if (footer) {
+        let node = recursivelyFindNodeWithId(footer, nodeId)
+        if (node) return node
     }
 
     let relevantNode = SITE_REP[path]
@@ -371,6 +403,18 @@ function getSiteRepNodeParentByChildNodeId(nodeId) {
     let path = window.location.pathname
     if (path !== "/" && path[path.length - 1] === "/") {
         path = path.slice(0, path.length - 1)
+    }
+
+    let header = SITE_REP["header"]
+    if (header) {
+        let node = recursivelyFindNodeWithId(header, nodeId, true)
+        if (node) return node
+    }
+
+    let footer = SITE_REP["footer"]
+    if (footer) {
+        let node = recursivelyFindNodeWithId(footer, nodeId, true)
+        if (node) return node
     }
 
     let relevantNode = SITE_REP[path]
@@ -671,11 +715,17 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
             appendElementDescriptionCollapsible(childEl)
             nodeEl.after(childEl)
             break
+        case "start":
+            addChildToSiteRep(nodeId, newNode)
+            appendElementDescriptionCollapsible(childEl)
+            nodeEl.prepend(childEl)
+            break
         default:
             nodeEl.appendChild(childEl) 
             addChildToSiteRep(nodeId, newNode)
             appendElementDescriptionCollapsible(childEl)
-    } 
+    }
+    return childNodeId
 }
 
 function getElementAfterNewNodeId(nodeId, newNodeId) {
@@ -814,6 +864,112 @@ function deleteNode(nodeId, value) {
     deleteNodeInSiteRep(nodeId)   
 }
 
+function makeNodeExpandable(nodeId, value) {
+
+    let nodeEl = getnodeElementByNodeId(nodeId)
+    if (!nodeEl) return
+
+    let node = getSiteRepNodeByNodeId(nodeId)
+    if (!node) throw new Error(`makeNodeExpandable: node 
+        with nodeId ${nodeId} does not exist in siterep`)
+
+    let newNodeId = Date.now().toString()
+
+    if (node.children) {
+        let nodeIds = Object.keys(node.children)
+        let sortedNodeIds = sortStringList(nodeIds)
+        newNodeId = `${Number(sortedNodeIds[0]) - 1000}`
+    }
+
+    appendContentToNodeEl(nodeId, "div", "=", newNodeId, "start")
+
+    let expandBtn = getnodeElementByNodeId(newNodeId)
+    expandBtn.style.fontSize = "40px"
+    updateSiteRep(newNodeId, "fontSize", "40px")
+
+    nodeEl.classList.add("toggle-content-by-width")
+    nodeEl.classList.add("open")
+
+    updateSiteRep(nodeId, "extendedClass", "toggle-content-by-width open")
+
+    expandBtn.onclick = () => {
+        let nodeEl = getnodeElementByNodeId(nodeId)
+        // nodeEl.classList.toggle("open") // TO-DO: Make animated
+        let prevDisplayVal = nodeEl.style.display
+
+        if (prevDisplayVal === "none") {
+            nodeEl.prepend(expandBtn)
+            nodeEl.style.display = "flex"
+            expandBtn.style.position = "static"
+        } else {
+            let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
+            let parentNodeEl = getnodeElementByNodeId(parentNodeId)
+            parentNodeEl.insertBefore(expandBtn, nodeEl)
+            expandBtn.style.left = nodeEl.style.left
+            expandBtn.style.right = nodeEl.style.right
+            expandBtn.style.position = "absolute"
+            nodeEl.style.display = "none"
+        }
+    }
+
+    let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
+
+    let onclick = `
+    window.addEventListener('load', function() {
+        let expandBtn = getnodeElementByNodeId("${newNodeId}");
+        expandBtn.onclick = () => {
+            let nodeEl = getnodeElementByNodeId("${nodeId}")
+            // nodeEl.classList.toggle("open") // TO-DO: Make animated
+            let prevDisplayVal = nodeEl.style.display
+
+            if (prevDisplayVal === "none") {
+                nodeEl.prepend(expandBtn)
+                nodeEl.style.display = "flex"
+                expandBtn.style.position = "static"
+            } else {
+                let parentNodeId = getSiteRepNodeParentByChildNodeId("${nodeId}").nodeId
+                let parentNodeEl = getnodeElementByNodeId("${parentNodeId}")
+                parentNodeEl.insertBefore(expandBtn, nodeEl)
+                expandBtn.style.left = nodeEl.style.left
+                expandBtn.style.right = nodeEl.style.right
+                expandBtn.style.position = "absolute"
+                nodeEl.style.display = "none"
+            }
+        }
+
+    });`
+
+    updateSiteRep(newNodeId, "addScript", onclick)
+
+    let [left, right] = adjustExpandableElementPosition(nodeEl)
+    updateSiteRep(nodeId, "shiftLeft", left)
+    updateSiteRep(nodeId, "shiftRight", right)
+    nodeEl.style.position = "absolute"
+    updateSiteRep(nodeId, "position", "absolute")
+
+    setOrientation(nodeId, "vertical")
+    closeCollapsible(nodeId)
+}
+
+function adjustExpandableElementPosition(element) {
+    const rect = element.getBoundingClientRect();
+    
+    const windowWidth = window.innerWidth;
+
+    const center = (rect.left + rect.right) / 2
+    
+    // Check if it's closer to the left or right
+    if (center < (windowWidth /  2)) {
+        element.style.left = '0px';
+        element.style.right = 'auto';
+        return ["0px", "auto"]
+    } else {
+        element.style.right = '0px';
+        element.style.left = 'auto';
+        return ["auto", "0px"]
+    }
+  }
+
 function increaseFontSize(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
@@ -866,6 +1022,19 @@ function decreaseWidth(nodeId, STEP) {
     updateSiteRep(nodeId, "width", `${updatedValue}`)
 }
 
+function setWidth(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let updatedValue = value
+    if (Number(value)) {
+        updatedValue = `${value}px`
+    }
+    nodeEl.style.width = updatedValue
+    nodeEl.style.maxWidth = `100%`
+    updateSiteRep(nodeId, "width", `${updatedValue}`)
+}
+
 function increaseHeight(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
@@ -887,6 +1056,18 @@ function decreaseHeight(nodeId, STEP) {
         - Number(getCssProp(nodeEl, "padding-bottom").replace("px", "") || 0)
     let updatedValue = prevHeight - Number(STEP)
     nodeEl.style.height = `${updatedValue}px`
+    updateSiteRep(nodeId, "height", `${updatedValue}`)
+}
+
+function setHeight(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    let updatedValue = value
+    if (Number(value)) {
+        updatedValue = `${value}px`
+    }
+    nodeEl.style.height = updatedValue
     updateSiteRep(nodeId, "height", `${updatedValue}`)
 }
 
@@ -1081,7 +1262,8 @@ function resetNodeIds(nodeEl) {
         let collapsibleContainersContainer = Array.from(nodeEl.children).find(child => child.classList.contains(nodeId))
         collapsibleContainersContainer?.remove()
 
-        let newNodeId = Date.now().toString()
+        let newNodeId = `${Date.now() + increaseMillisecondsDifference}`
+        increaseMillisecondsDifference += 10
 
         nodeEl.setAttribute("nodeId", newNodeId)
         nodeEl.setAttribute("prevNodeId", nodeId)
@@ -1092,21 +1274,25 @@ function setNewNodeIdsToNodeClone(cloneEl, nodeClone) {
     let prevNodeId = cloneEl.getAttribute("prevNodeId")
     let nodeId = cloneEl.getAttribute("nodeId")
 
-    findNodeWithIdAndUpdateId(nodeClone, prevNodeId, nodeId)
-    Array.from(cloneEl.children).forEach(child => {
-        setNewNodeIdsToNodeClone(child, nodeClone)
+    findNodeWithIdAndUpdateId(nodeClone, prevNodeId, nodeId, nodeClone)
+    Array.from(cloneEl.children).forEach(childEl => {
+        setNewNodeIdsToNodeClone(childEl, nodeClone)
     })
 }
 
-function findNodeWithIdAndUpdateId(node, prevNodeId, currentNodeId) {
+function findNodeWithIdAndUpdateId(node, prevNodeId, currentNodeId, parent) {
     if (node.nodeId === prevNodeId) {
         node.nodeId = currentNodeId
+        if (parent !== node) {
+            parent.children[currentNodeId] = node
+            delete parent.children[prevNodeId]
+        }
         return
     }
 
     if (node.children) {
-        for (let childNode of Object.keys(node.children)) {
-            findNodeWithIdAndUpdateId(childNode, prevNodeId, currentNodeId)
+        for (let childNode of Object.values(node.children)) {
+            findNodeWithIdAndUpdateId(childNode, prevNodeId, currentNodeId, node)
         }
     }
 }
@@ -1218,6 +1404,7 @@ function addScript(nodeId, value) {
     value = value.replace("::done", "")
     value = value.replace("<script>", "").replace("</script>", "")
     // allow script targeted at current node
+    // TO-DO: make more powerful by matching pattern to substitute vars
     value = value.replace(/nodeId/g, `"${nodeId}"`)
     let script = document.createElement("script")
     let storedValue = `window.addEventListener('load', function() {

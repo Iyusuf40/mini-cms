@@ -35,6 +35,7 @@ var stylePropsAndItsCss = [][2]string{
 	{"paddingLeft", "padding-left"},
 	{"paddingRight", "padding-right"},
 	{"edgeRounding", "border-radius"},
+	{"position", "position"},
 }
 
 var htmlAttributesToSet = []string{
