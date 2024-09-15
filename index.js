@@ -51,6 +51,8 @@ const mainNodeId = "0"
 const headerNodeId = "-1"
 const footerNodeId = "1"
 
+const elementDescriptionElId = "elementDescriptionElId"
+
 var STEP  = 2
 var SITE_REP = null
 var lastColorSent = ""
@@ -59,38 +61,27 @@ let increaseMillisecondsDifference = 0
 
 var baseUrl = "http://localhost:3000"
 
-function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
-    let collapsibleContainersContainer = document.createElement("div")
-    collapsibleContainersContainer.classList.add(nodeId) // identify each node's modifier
-    collapsibleContainersContainer.style.position = "absolute"
-    collapsibleContainersContainer.style.right = "0px"
-    collapsibleContainersContainer.style.top = "0px"
-    collapsibleContainersContainer.style.display = "inline-block"
-    collapsibleContainersContainer.style.width = "100%" 
-    let collapsibleContainer = document.createElement("div")
-    collapsibleContainersContainer.appendChild(collapsibleContainer)
-    collapsibleContainer.style.display = "flex"
-    collapsibleContainer.style.width = "fit-content"
-    collapsibleContainer.style.flexDirection =  "column"
-    collapsibleContainer.style.right = "5px"
-    collapsibleContainer.style.gap = "0.5rem"
-    collapsibleContainer.classList.add("element--description--collapsible")
-    collapsibleContainer.style.position = "absolute"
+function diplayElementDescription(nodeId, isMainElement) {
+    let elementDescriptionEl = document.createElement("div")
+    elementDescriptionEl.style.position = "absolute"
+    elementDescriptionEl.style.right = 0
+    elementDescriptionEl.style.top = 0
+    elementDescriptionEl.style.width = "fit-content" 
+    elementDescriptionEl.style.zIndex = 999999999
+    elementDescriptionEl.style.color = `rgb(255, 200, 100)`
+    elementDescriptionEl.style.padding = "5px"
+    elementDescriptionEl.style.backgroundColor = `rgba(0, 0, 100, 0.6)`
+    let descriptionContainer = document.createElement("div")
+    elementDescriptionEl.appendChild(descriptionContainer)
+    descriptionContainer.style.display = "flex"
+    descriptionContainer.style.width = "fit-content"
+    descriptionContainer.style.flexDirection =  "column"
+    descriptionContainer.style.right = "5px"
+    descriptionContainer.style.gap = "0.5rem"
 
-    let toggleBtn = document.createElement("button")
-    toggleBtn.classList.add("toggle-button")
-    if (nodeId === mainNodeId) {
-        toggleBtn.style.zIndex = "100"
-    }
-    toggleBtn.textContent = "+"
-    
-    addEventListenerToToggleBtn(toggleBtn, collapsibleContainer)
+    addCloseBtn(descriptionContainer, nodeId)
 
-    collapsibleContainer.classList.add("toggle-content")
-
-    collapsibleContainersContainer.appendChild(toggleBtn)
-
-    if (isMainElement) appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer)
+    if (isMainElement) appendAddHeaderAndAddFooterToCollapsible(descriptionContainer)
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
         let [text, elementType, action, field] = collapsibleFieldDesc
@@ -125,7 +116,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
                         }
                     }
                 })
-                collapsibleContainer.appendChild(radioContainer)
+                descriptionContainer.appendChild(radioContainer)
             } else {
                 let fieldContainer = document.createElement("div")
                 fieldContainer.style.display = "flex"
@@ -138,7 +129,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
                 fieldEl.setAttribute("type", inputType)
                 fieldEl.setAttribute("placeholder", text)
                 fieldContainer.appendChild(fieldEl)
-                collapsibleContainer.appendChild(fieldContainer)
+                descriptionContainer.appendChild(fieldContainer)
                 
                 if (inputType === "text") {
                     fieldEl.onclick = (e) => e.preventDefault()
@@ -156,7 +147,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
             fieldEl.placeholder = text
             fieldEl.value = field ? getCurrentFieldValueFromSiteRep(nodeId, field) || "" : ""
 
-            collapsibleContainer.appendChild(fieldEl)
+            descriptionContainer.appendChild(fieldEl)
 
             fieldEl.onclick = (e) => e.preventDefault()
             fieldEl.oninput = (e) => {
@@ -168,7 +159,7 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
             fieldEl.style.display = "block"
             fieldEl.innerText = text
 
-            collapsibleContainer.appendChild(fieldEl)
+            descriptionContainer.appendChild(fieldEl)
             // on click
 
             fieldEl.onclick = (e) => {
@@ -178,12 +169,65 @@ function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
         }
     }
 
+    document.getElementById(elementDescriptionElId)?.remove()
+
+    elementDescriptionEl.id = elementDescriptionElId
+
+    document.querySelector("body").appendChild(elementDescriptionEl)
+}
+
+function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
+    let collapsibleContainersContainer = document.createElement("div")
+    collapsibleContainersContainer.classList.add(nodeId) // identify each node's modifier
+    collapsibleContainersContainer.style.position = "absolute"
+    collapsibleContainersContainer.style.right = "0px"
+    collapsibleContainersContainer.style.top = "0px"
+    collapsibleContainersContainer.style.display = "inline-block"
+
+    let toggleBtn = document.createElement("button")
+    toggleBtn.classList.add("toggle-button")
+    if (nodeId === mainNodeId) {
+        toggleBtn.style.zIndex = "100"
+    }
+    toggleBtn.textContent = "+"
+    
+    addEventListenerToToggleBtn(toggleBtn, nodeId, isMainElement)
+
+    collapsibleContainersContainer.appendChild(toggleBtn)
+
     return collapsibleContainersContainer
+}
+
+function addEventListenerToToggleBtn(toggleBtn, nodeId, isMainElement) {
+    toggleBtn.addEventListener('click', (event) => {
+        event.preventDefault()
+
+        if (toggleBtn.innerText === "+") {
+            diplayElementDescription(nodeId, isMainElement)
+            toggleBtn.textContent = '-';
+        } else {
+            document.getElementById(elementDescriptionElId)?.remove()
+            toggleBtn.textContent = '+';
+        }
+    });
 }
 
 function getCurrentFieldValueFromSiteRep(nodeId, field) {
     let node = getSiteRepNodeByNodeId(nodeId)
     if (node) return node[field]
+}
+
+function addCloseBtn(collapsibleContainer, nodeId) {
+    let closeBtn = document.createElement("button")
+    closeBtn.style.display = "block"
+    closeBtn.innerText = "close"
+    closeBtn.style.backgroundColor = "red"
+
+    closeBtn.onclick = () => {
+        closeCollapsible(nodeId)
+    }
+
+    collapsibleContainer.appendChild(closeBtn)
 }
 
 function appendAddHeaderAndAddFooterToCollapsible(collapsibleContainer) {
@@ -254,32 +298,6 @@ function getRandomColor() {
     return getRandomColor()
 }
 
-function addEventListenerToToggleBtn(toggleBtn, toggleContent) {
-    toggleBtn.addEventListener('click', (event) => {
-        event.preventDefault()
-        let mouseX = event.clientX;
-    
-        // check if the form will be cut off on the right side
-        if (mouseX - toggleContent.offsetWidth < 0) {
-            toggleContent.style.left = "0px";
-        }
-
-        if (toggleContent.classList.contains('open')) {
-            toggleContent.classList.remove('open');
-            toggleBtn.textContent = '+';
-        } else {
-            toggleContent.classList.add('open');
-            toggleBtn.textContent = '-';
-        }
-    });
-}
-
-function makeNode(tag) {
-    if (!tag) {
-        tag = "div"
-    }
-
-}
 
 function addEventListenerToNode(node) {
 
@@ -338,6 +356,7 @@ document.addEventListener("keydown", (e) => {
 
 	if (e.ctrlKey && e.key.toLowerCase() === "d") {
         e.preventDefault()
+        document.getElementById(elementDescriptionElId)?.remove()
 		document.querySelectorAll(".toggle-button").forEach(e => {
             e.classList.toggle("hide")
         })
@@ -860,6 +879,7 @@ function deleteNode(nodeId, value) {
         alert("you cannot delete the root element")
         return
     }
+    closeCollapsible(nodeId)
     nodeEl.remove()
     deleteNodeInSiteRep(nodeId)   
 }
@@ -873,41 +893,42 @@ function makeNodeExpandable(nodeId, value) {
     if (!node) throw new Error(`makeNodeExpandable: node 
         with nodeId ${nodeId} does not exist in siterep`)
 
-    let newNodeId = Date.now().toString()
+    let hambugerNodeId = Date.now().toString()
 
     if (node.children) {
         let nodeIds = Object.keys(node.children)
         let sortedNodeIds = sortStringList(nodeIds)
-        newNodeId = `${Number(sortedNodeIds[0]) - 1000}`
+        hambugerNodeId = `${Number(sortedNodeIds[0]) - 1000}`
     }
 
-    appendContentToNodeEl(nodeId, "div", "=", newNodeId, "start")
+    appendContentToNodeEl(nodeId, "div", "=", hambugerNodeId, "start")
 
-    let expandBtn = getnodeElementByNodeId(newNodeId)
+    let expandBtn = getnodeElementByNodeId(hambugerNodeId)
     expandBtn.style.fontSize = "40px"
-    updateSiteRep(newNodeId, "fontSize", "40px")
+    updateSiteRep(hambugerNodeId, "fontSize", "40px")
 
-    nodeEl.classList.add("toggle-content-by-width")
+    expandBtn.classList.add("hambuger")
+    updateSiteRep(hambugerNodeId, "extendedClass", "hambuger")
+
+    nodeEl.classList.add("expand-by-width")
     nodeEl.classList.add("open")
 
-    updateSiteRep(nodeId, "extendedClass", "toggle-content-by-width open")
+    updateSiteRep(nodeId, "extendedClass", "expand-by-width open")
 
     expandBtn.onclick = () => {
         let nodeEl = getnodeElementByNodeId(nodeId)
-        // nodeEl.classList.toggle("open") // TO-DO: Make animated
+        // TO-DO: Make animated
         let prevDisplayVal = nodeEl.style.display
 
         if (prevDisplayVal === "none") {
             nodeEl.prepend(expandBtn)
             nodeEl.style.display = "flex"
-            expandBtn.style.position = "static"
         } else {
             let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
             let parentNodeEl = getnodeElementByNodeId(parentNodeId)
             parentNodeEl.insertBefore(expandBtn, nodeEl)
             expandBtn.style.left = nodeEl.style.left
             expandBtn.style.right = nodeEl.style.right
-            expandBtn.style.position = "absolute"
             nodeEl.style.display = "none"
         }
     }
@@ -916,7 +937,7 @@ function makeNodeExpandable(nodeId, value) {
 
     let onclick = `
     window.addEventListener('load', function() {
-        let expandBtn = getnodeElementByNodeId("${newNodeId}");
+        let expandBtn = getnodeElementByNodeId("${hambugerNodeId}");
         expandBtn.onclick = () => {
             let nodeEl = getnodeElementByNodeId("${nodeId}")
             // nodeEl.classList.toggle("open") // TO-DO: Make animated
@@ -939,13 +960,15 @@ function makeNodeExpandable(nodeId, value) {
 
     });`
 
-    updateSiteRep(newNodeId, "addScript", onclick)
+    updateSiteRep(hambugerNodeId, "addScript", onclick)
 
     let [left, right] = adjustExpandableElementPosition(nodeEl)
     updateSiteRep(nodeId, "shiftLeft", left)
     updateSiteRep(nodeId, "shiftRight", right)
     nodeEl.style.position = "absolute"
     updateSiteRep(nodeId, "position", "absolute")
+
+    alignHambugerSign(nodeEl, hambugerNodeId)
 
     setOrientation(nodeId, "vertical")
     closeCollapsible(nodeId)
@@ -968,7 +991,22 @@ function adjustExpandableElementPosition(element) {
         element.style.left = 'auto';
         return ["auto", "0px"]
     }
-  }
+}
+
+function alignHambugerSign(nodeEl, hambugerNodeId) {
+    const rect = nodeEl.getBoundingClientRect();
+    
+    const windowWidth = window.innerWidth;
+
+    const center = (rect.left + rect.right) / 2
+    
+    // Check if it's closer to the left or right
+    if (center < (windowWidth /  2)) {
+        setTextAlignment(hambugerNodeId, "right")
+    } else {
+        setTextAlignment(hambugerNodeId, "left")
+    }
+}
 
 function increaseFontSize(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
