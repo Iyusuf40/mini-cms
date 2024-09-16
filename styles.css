@@ -46,17 +46,19 @@ main {
     max-width: 0;
     max-height: 0;
     overflow: hidden;
-    transition: max-height 0.2s ease-out, padding 0.2s ease-out;
+    /* transition: max-height 0.2s ease-out, padding 0.2s ease-out; */
     z-index: 10;
     cursor: pointer;
+    display: none !important;
 }
 
 .expand-by-width.open {
     max-width: 100000px; /* a large number to ensure it can expand */
     max-height: 100000px;
     padding: 5px;
-    transition: max-height 0.2s ease-in, padding 0.2s ease-in;
+    /* transition: max-height 0.2s ease-in, padding 0.2s ease-in; */
     cursor: pointer;
+    display: flex !important;
 }
 
 .hambuger {

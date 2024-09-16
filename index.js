@@ -213,6 +213,7 @@ function addEventListenerToToggleBtn(toggleBtn, nodeId, isMainElement) {
 }
 
 function getCurrentFieldValueFromSiteRep(nodeId, field) {
+    if (field === "STEP") return `${STEP}`
     let node = getSiteRepNodeByNodeId(nodeId)
     if (node) return node[field]
 }
@@ -901,7 +902,9 @@ function makeNodeExpandable(nodeId, value) {
         hambugerNodeId = `${Number(sortedNodeIds[0]) - 1000}`
     }
 
-    appendContentToNodeEl(nodeId, "div", "=", hambugerNodeId, "start")
+    let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
+
+    appendContentToNodeEl(parentNodeId, "div", "=", hambugerNodeId, "start")
 
     let expandBtn = getnodeElementByNodeId(hambugerNodeId)
     expandBtn.style.fontSize = "40px"
@@ -909,52 +912,51 @@ function makeNodeExpandable(nodeId, value) {
 
     expandBtn.classList.add("hambuger")
     updateSiteRep(hambugerNodeId, "extendedClass", "hambuger")
-
-    nodeEl.classList.add("expand-by-width")
-    nodeEl.classList.add("open")
-
-    updateSiteRep(nodeId, "extendedClass", "expand-by-width open")
+    updateSiteRep(hambugerNodeId, "position", "absolute")
 
     expandBtn.onclick = () => {
         let nodeEl = getnodeElementByNodeId(nodeId)
-        // TO-DO: Make animated
-        let prevDisplayVal = nodeEl.style.display
+        // TO-DO: Make animated in both places ie onclick text below
 
-        if (prevDisplayVal === "none") {
-            nodeEl.prepend(expandBtn)
-            nodeEl.style.display = "flex"
-        } else {
+        if (nodeEl.classList.contains("open")) {
             let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
             let parentNodeEl = getnodeElementByNodeId(parentNodeId)
             parentNodeEl.insertBefore(expandBtn, nodeEl)
             expandBtn.style.left = nodeEl.style.left
             expandBtn.style.right = nodeEl.style.right
-            nodeEl.style.display = "none"
+            expandBtn.style.position = "absolute"
+            nodeEl.classList.remove("open")
+            expandBtn.innerText = "="
+        } else {
+            expandBtn.style.position = ""
+            nodeEl.prepend(expandBtn)
+            nodeEl.style.display = "flex"
+            nodeEl.classList.add("open")
+            expandBtn.innerText = "x"
         }
     }
-
-    let parentNodeId = getSiteRepNodeParentByChildNodeId(nodeId).nodeId
 
     let onclick = `
     window.addEventListener('load', function() {
         let expandBtn = getnodeElementByNodeId("${hambugerNodeId}");
         expandBtn.onclick = () => {
             let nodeEl = getnodeElementByNodeId("${nodeId}")
-            // nodeEl.classList.toggle("open") // TO-DO: Make animated
-            let prevDisplayVal = nodeEl.style.display
 
-            if (prevDisplayVal === "none") {
-                nodeEl.prepend(expandBtn)
-                nodeEl.style.display = "flex"
-                expandBtn.style.position = "static"
-            } else {
+            if (nodeEl.classList.contains("open")) {
                 let parentNodeId = getSiteRepNodeParentByChildNodeId("${nodeId}").nodeId
                 let parentNodeEl = getnodeElementByNodeId("${parentNodeId}")
                 parentNodeEl.insertBefore(expandBtn, nodeEl)
                 expandBtn.style.left = nodeEl.style.left
                 expandBtn.style.right = nodeEl.style.right
                 expandBtn.style.position = "absolute"
-                nodeEl.style.display = "none"
+                nodeEl.classList.remove("open")
+                expandBtn.innerText = "="
+            } else {
+             expandBtn.style.position = ""
+                nodeEl.prepend(expandBtn)
+                nodeEl.style.display = "flex"
+                nodeEl.classList.add("open")
+                expandBtn.innerText = "x"
             }
         }
 
@@ -962,16 +964,22 @@ function makeNodeExpandable(nodeId, value) {
 
     updateSiteRep(hambugerNodeId, "addScript", onclick)
 
+    alignHambugerSign(nodeEl, hambugerNodeId)
     let [left, right] = adjustExpandableElementPosition(nodeEl)
+
+    nodeEl.classList.add("expand-by-width")
+    updateSiteRep(nodeId, "extendedClass", "expand-by-width")
     updateSiteRep(nodeId, "shiftLeft", left)
     updateSiteRep(nodeId, "shiftRight", right)
     nodeEl.style.position = "absolute"
     updateSiteRep(nodeId, "position", "absolute")
 
-    alignHambugerSign(nodeEl, hambugerNodeId)
-
     setOrientation(nodeId, "vertical")
     closeCollapsible(nodeId)
+
+    let parentNodeEl = getnodeElementByNodeId(parentNodeId)
+    parentNodeEl.insertBefore(expandBtn, nodeEl)
+    expandBtn.click()
 }
 
 function adjustExpandableElementPosition(element) {
@@ -995,6 +1003,7 @@ function adjustExpandableElementPosition(element) {
 
 function alignHambugerSign(nodeEl, hambugerNodeId) {
     const rect = nodeEl.getBoundingClientRect();
+    const hambuger = getnodeElementByNodeId(hambugerNodeId)
     
     const windowWidth = window.innerWidth;
 
@@ -1003,8 +1012,14 @@ function alignHambugerSign(nodeEl, hambugerNodeId) {
     // Check if it's closer to the left or right
     if (center < (windowWidth /  2)) {
         setTextAlignment(hambugerNodeId, "right")
+        hambuger.style.left = "0px"
+        updateSiteRep(hambugerNodeId, "shiftLeft", "0px")
+        updateSiteRep(hambugerNodeId, "shiftRight", "auto")
     } else {
         setTextAlignment(hambugerNodeId, "left")
+        hambuger.style.right = "0px"
+        updateSiteRep(hambugerNodeId, "shiftRight", "0px")
+        updateSiteRep(hambugerNodeId, "shiftLeft", "auto")
     }
 }
 
