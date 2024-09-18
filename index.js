@@ -9,14 +9,17 @@ const collapsibleFieldElementTypeAction = [
     ["add subheading", "button", addSubHeading],
     ["increase font size", "button", increaseFontSize],
     ["decrease font size", "button", decreaseFontSize],
+    ["select font", `select:Arial:Verdana:Times New Roman:Roboto Mono:
+        Tahoma:Trebuchet MS:Georgia:EB Garamond:
+        Abhaya Libre:Courier New`, setFont],
+    ["font color", "input:color", setFontColor],
+    ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["increase width", "button", increaseWidth],
     ["decrease width", "button", decreaseWidth],
     ["width", "input:text", setWidth, "width"],
     ["increase height", "button", increaseHeight],
     ["decrease height", "button", decreaseHeight],
     ["height", "input:text", setHeight, "height"],
-    ["font color", "input:color", setFontColor],
-    ["font weight", "input:radio:lighter:normal:bold", setFontWeight],
     ["background color", "input:color", setBackgroundColor],
     ["orientation", "input:radio:vertical:horizontal", setOrientation],
     ["gap", "input:text", setGap, "gap"],
@@ -90,6 +93,10 @@ function diplayElementDescription(nodeId, isMainElement) {
             tag = "input"
         }
 
+        if (elementType.startsWith("select")) {
+            tag = "select"
+        }
+
         if (tag === "input") {
             let inputType = elementType.split(":")[1]
             if (inputType === "radio"){
@@ -154,6 +161,26 @@ function diplayElementDescription(nodeId, isMainElement) {
                 e.preventDefault()
                 action(nodeId, e.target.value)
             }
+        } else if (tag === "select") {
+            let selectContainer = document.createElement("div")
+            let fieldEl = document.createElement(tag)
+            selectContainer.style.display = "flex"
+            let subheading = document.createElement("div")
+            subheading.innerText = `${text}:`
+            selectContainer.appendChild(subheading)
+            selectContainer.appendChild(fieldEl)
+            elementType.split(":").splice(1).forEach(selectOption => {
+                let option = document.createElement("option")
+                option.style.width = "100px"
+                option.value = selectOption
+                option.innerText = selectOption
+                option.style.fontFamily = selectOption
+                fieldEl.appendChild(option)
+            })
+            fieldEl.onchange = (e) => {
+                action(nodeId, e.target.value)
+            }
+            descriptionContainer.appendChild(selectContainer)
         } else {
             let fieldEl = document.createElement(tag)
             fieldEl.style.display = "block"
@@ -1046,6 +1073,14 @@ function decreaseFontSize(nodeId, value) {
     let updatedValue = prevFontSize - Number(STEP)
     nodeEl.style.fontSize = `${updatedValue}px`
     updateSiteRep(nodeId, "fontSize", `${updatedValue}`)
+}
+
+function setFont(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+    nodeEl.style.fontFamily = value
+    updateSiteRep(nodeId, "font", value)
 }
 
 

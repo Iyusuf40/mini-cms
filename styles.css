@@ -1,7 +1,21 @@
+@import url("https://fonts.googleapis.com/css2?family=Roboto+Mono&family=EB+Garamond&family=Abhaya+Libre&family=Arial&family=Verdana&family=Tahoma&family=Trebuchet+MS&family=Times+New+Roman&family=Georgia&family=Courier+New&display=swap");
+
 *, html, body {
     box-sizing: border-box;
     margin: 0;
     padding: 0;
+    font-family: "Roboto Mono";
+}
+
+h1, h2, h3, h4 {
+    font-family: "Abhaya Libre";
+}
+
+/* this is important as nodes text are actually
+   p tags, so they should inherit from their parent nodes
+*/
+p {
+    font-family: inherit;
 }
 
 main {

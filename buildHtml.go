@@ -12,6 +12,7 @@ import (
 var stylePropsAndItsCss = [][2]string{
 	{"fontColor", "color"},
 	{"fontSize", "font-size"},
+	{"font", "font-family"},
 	{"width", "width"},
 	{"height", "height"},
 	{"backgroundColor", "background-color"},
