@@ -119,6 +119,7 @@ function diplayElementDescription(nodeId, isMainElement) {
                     fieldEl.oninput = (e) => {
                         e.preventDefault()
                         if (e.target.checked) {
+                            HistoryTools.record(nodeId)
                             action(nodeId, e.target.id)
                         }
                     }
@@ -144,6 +145,7 @@ function diplayElementDescription(nodeId, isMainElement) {
                 }
                 fieldEl.oninput = (e) => {
                     e.preventDefault()
+                    HistoryTools.record(nodeId)
                     action(nodeId, e.target.value)
                 }
             }
@@ -159,6 +161,7 @@ function diplayElementDescription(nodeId, isMainElement) {
             fieldEl.onclick = (e) => e.preventDefault()
             fieldEl.oninput = (e) => {
                 e.preventDefault()
+                HistoryTools.record(nodeId)
                 action(nodeId, e.target.value)
             }
         } else if (tag === "select") {
@@ -178,6 +181,7 @@ function diplayElementDescription(nodeId, isMainElement) {
                 fieldEl.appendChild(option)
             })
             fieldEl.onchange = (e) => {
+                HistoryTools.record(nodeId)
                 action(nodeId, e.target.value)
             }
             descriptionContainer.appendChild(selectContainer)
@@ -191,6 +195,9 @@ function diplayElementDescription(nodeId, isMainElement) {
 
             fieldEl.onclick = (e) => {
                 e.preventDefault()
+                if (["duplicate", "delete node"].includes(text) === false) {
+                    HistoryTools.record(nodeId)
+                }
                 action(nodeId, STEP)
             }
         }
@@ -294,6 +301,13 @@ function appendElementDescriptionCollapsible(nodeEl) {
     })
 }
 
+function removeElementDescriptionCollapsible(nodeEl) {
+    let nodeId = nodeEl.getAttribute("nodeId")
+    if (!nodeId) return
+    let descCollapsible = getElementDescriptionCollapsible(nodeEl, nodeId)
+    descCollapsible?.remove()
+}
+
 function setCollapsibleToggleBtnWidthRelativeToParent(nodeId) {
     let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
     if (!parentNode) return
@@ -382,12 +396,22 @@ document.addEventListener("keydown", (e) => {
 		return;
 	}
 
-	if (e.ctrlKey && e.key.toLowerCase() === "d") {
+	if (e.ctrlKey) {
         e.preventDefault()
-        document.getElementById(elementDescriptionElId)?.remove()
-		document.querySelectorAll(".toggle-button").forEach(e => {
-            e.classList.toggle("hide")
-        })
+        switch (e.key.toLowerCase()) {
+            case "d":
+                document.getElementById(elementDescriptionElId)?.remove()
+                document.querySelectorAll(".toggle-button").forEach(e => {
+                    e.classList.toggle("hide")
+                })
+                break
+            case "z":
+                HistoryTools.undo()
+                break
+            case "y":
+                HistoryTools.redo()
+                break
+        }
 	}
 });
 
@@ -1729,5 +1753,63 @@ async function get_SHA256_Hash(content) {
     const hashArray = Array.from(new Uint8Array(hash));
     const hashHex = hashArray.map(b => b.toString(16).padStart(2, '0')).join('');
     return hashHex;
+}
+
+class HistoryTools {
+	static redoStack = [];
+	static undoStack = [];
+
+	static redo() {
+		if (HistoryTools.redoStack.length > 0) {
+			const prevState = HistoryTools.redoStack.pop();
+
+            let {node, nodeEl} = prevState
+
+            let nodeCopy = JSON.parse(JSON.stringify(node))
+            let nodeElCopy = nodeEl.cloneNode(true)
+    
+            HistoryTools.undoStack.push({node: nodeCopy, nodeEl: nodeElCopy});
+
+            HistoryTools.resetState(node, nodeEl)
+		}
+	}
+
+	static undo() {
+		if (!HistoryTools.undoStack.length) return;
+        let newestState = HistoryTools.undoStack.pop()
+
+        let {node, nodeEl} = newestState
+        let nodeCopy = JSON.parse(JSON.stringify(node))
+        let nodeElCopy = nodeEl.cloneNode(true)
+
+        HistoryTools.redoStack.push({node: nodeCopy, nodeEl: nodeElCopy});
+
+        HistoryTools.resetState(node, nodeEl)
+	}
+
+    static resetState(node, nodeEl) {
+        // reset node
+        let nodeId = node.nodeId
+        let parentNode = getSiteRepNodeParentByChildNodeId(nodeId)
+        parentNode.children[nodeId] = node
+
+        // reset nodeEl
+        let parentNodeEl = getnodeElementByNodeId(parentNode.nodeId)
+        let currentNodeEl = getnodeElementByNodeId(nodeId)
+        parentNodeEl.insertBefore(nodeEl, currentNodeEl)
+        currentNodeEl.remove()
+
+        visitAllElements(nodeEl, removeElementDescriptionCollapsible)
+        visitAllElements(nodeEl, appendElementDescriptionCollapsible)
+        
+        closeCollapsible(nodeId)
+    }
+
+	static record(nodeId) {
+        let nodeEl = getnodeElementByNodeId(nodeId).cloneNode(true)
+        let node = JSON.parse(JSON.stringify(getSiteRepNodeByNodeId(nodeId)))
+		HistoryTools.undoStack.push({node, nodeEl});
+		HistoryTools.redoStack.length = 0;
+	}
 }
   
