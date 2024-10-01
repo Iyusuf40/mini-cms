@@ -56,7 +56,7 @@ const footerNodeId = "1"
 
 const elementDescriptionElId = "elementDescriptionElId"
 
-var STEP  = 2
+let STEP = 5
 var SITE_REP = null
 var lastColorSent = ""
 
@@ -977,13 +977,11 @@ function makeNodeExpandable(nodeId, value) {
             expandBtn.style.right = nodeEl.style.right
             expandBtn.style.position = "absolute"
             nodeEl.classList.remove("open")
-            expandBtn.innerText = "="
         } else {
             expandBtn.style.position = ""
             nodeEl.prepend(expandBtn)
             nodeEl.style.display = "flex"
             nodeEl.classList.add("open")
-            expandBtn.innerText = "x"
         }
     }
 
@@ -1001,13 +999,11 @@ function makeNodeExpandable(nodeId, value) {
                 expandBtn.style.right = nodeEl.style.right
                 expandBtn.style.position = "absolute"
                 nodeEl.classList.remove("open")
-                expandBtn.innerText = "="
             } else {
-             expandBtn.style.position = ""
+                expandBtn.style.position = ""
                 nodeEl.prepend(expandBtn)
                 nodeEl.style.display = "flex"
                 nodeEl.classList.add("open")
-                expandBtn.innerText = "x"
             }
         }
 
@@ -1112,9 +1108,7 @@ function increaseWidth(nodeId, STEP) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    let prevWidth = nodeEl.offsetWidth 
-        - Number(getCssProp(nodeEl, "padding-left").replace("px", "") || 0)
-        - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
+    let prevWidth = nodeEl.offsetWidth
     let updatedValue = Number(STEP) + prevWidth
     nodeEl.style.width = `${updatedValue}px`
     nodeEl.style.maxWidth = `100%`
@@ -1126,8 +1120,6 @@ function decreaseWidth(nodeId, STEP) {
 
     if (!nodeEl) return
     let prevWidth = nodeEl.offsetWidth 
-        - Number(getCssProp(nodeEl, "padding-left").replace("px", "") || 0)
-        - Number(getCssProp(nodeEl, "padding-right").replace("px", "") || 0)
     let updatedValue = prevWidth - Number(STEP)
     nodeEl.style.width = `${updatedValue}px`
     nodeEl.style.maxWidth = `100%`
@@ -1152,8 +1144,6 @@ function increaseHeight(nodeId, STEP) {
 
     if (!nodeEl) return
     let prevHeight = nodeEl.offsetHeight
-        - Number(getCssProp(nodeEl, "padding-top").replace("px", "") || 0)
-        - Number(getCssProp(nodeEl, "padding-bottom").replace("px", "") || 0)
     let updatedValue = Number(STEP) + prevHeight
     nodeEl.style.height = `${updatedValue}px`
     updateSiteRep(nodeId, "height", `${updatedValue}`)
@@ -1164,8 +1154,6 @@ function decreaseHeight(nodeId, STEP) {
 
     if (!nodeEl) return
     let prevHeight = nodeEl.offsetHeight
-        - Number(getCssProp(nodeEl, "padding-top").replace("px", "") || 0)
-        - Number(getCssProp(nodeEl, "padding-bottom").replace("px", "") || 0)
     let updatedValue = prevHeight - Number(STEP)
     nodeEl.style.height = `${updatedValue}px`
     updateSiteRep(nodeId, "height", `${updatedValue}`)
