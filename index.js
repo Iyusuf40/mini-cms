@@ -1,5 +1,6 @@
 const collapsibleFieldElementTypeAction = [
     ["set content", "textarea", setContent, "text"],
+    ["set url", "input:text", setUrl, "href"],
     ["add child", "button", addChild],
     ["add node before", "button", addNodeBefore],
     ["add node after", "button", addNodeAfter],
@@ -24,6 +25,7 @@ const collapsibleFieldElementTypeAction = [
     ["orientation", "input:radio:vertical:horizontal", setOrientation],
     ["gap", "input:text", setGap, "gap"],
     ["align", "input:radio:left:center:right", setTextAlignment],
+    ["display", "input:radio:block:inline-block", setInlineOrBlock],
     ["position", "input:radio:start:middle:end", setSelfAlignment],
     ["shift up", "button", shiftUp],
     ["shift down", "button", shiftDown],
@@ -88,6 +90,11 @@ function diplayElementDescription(nodeId, isMainElement) {
 
     for (const collapsibleFieldDesc of collapsibleFieldElementTypeAction) {
         let [text, elementType, action, field] = collapsibleFieldDesc
+
+        if (text === "set url") {
+            if (getSiteRepNodeByNodeId(nodeId).tag !== "a") continue
+        }
+
         let tag = elementType
         if (elementType.startsWith("input")) {
             tag = "input"
@@ -141,8 +148,14 @@ function diplayElementDescription(nodeId, isMainElement) {
                 
                 if (inputType === "text") {
                     fieldEl.onclick = (e) => e.preventDefault()
-                    fieldEl.value = field ? getCurrentFieldValueFromSiteRep(nodeId, field) || "" : ""
+                    if (field) {
+                        fieldEl.value = getCurrentFieldValueFromSiteRep(nodeId, field) || ""
+                        if (field === "href") {
+                            fieldEl.value = fieldEl.value.replace(getProjectBasePath(), "")
+                        }
+                    }
                 }
+
                 fieldEl.oninput = (e) => {
                     e.preventDefault()
                     HistoryTools.record(nodeId)
@@ -562,6 +575,16 @@ function setContent(nodeId, value) {
     })
 }
 
+function setUrl(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+
+    let url = getProjectBasePath() + value
+    nodeEl.setAttribute("href", url)
+    updateSiteRep(nodeId, "href", url)
+}
+
 function closeCollapsible(nodeId) {
     let collapsibleToggleBtn = getCollapsibleToggleBtn(nodeId)
     if (collapsibleToggleBtn.textContent === "-") collapsibleToggleBtn.click()
@@ -583,12 +606,12 @@ function getCollapsibleToggleBtn(nodeId) {
 }
 
 function setTextInFirstChildParagraph(nodeEl, text) {
-    let firstP = nodeEl.querySelector("p")
-    if (!firstP) {
-        let p = document.createElement("p")
-        p.innerText = text
-        nodeEl.appendChild(p)
+    if (nodeEl.tagName.toLowerCase() == "p") {
+        let collapsible = getElementDescriptionCollapsible(nodeEl, nodeEl.getAttribute("nodeId"))
+        nodeEl.innerText = text
+        nodeEl.appendChild(collapsible)
     } else {
+        let firstP = nodeEl.querySelector("p")
         firstP.innerText = text
     }
 }
@@ -651,7 +674,7 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     function disableIrrelevantFields() {
         if (typeSelectorEl.value === "a") {
             linkInput.disabled = false
-            textContent.disabled = true
+            textContent.disabled = false
             imageInput.disabled = true    
         } else if (typeSelectorEl.value === "img") {
             imageInput.disabled = false
@@ -677,7 +700,7 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
 
     const getFormValue = (selectOpt) => {
         let possibleValues = {
-            "a": linkInput.value,
+            "a": `${linkInput.value}:${textContent.value}`,
             "img": imageInput.files?.item(0),
         }
         return possibleValues[selectOpt] ? possibleValues[selectOpt] : textContent.value
@@ -720,12 +743,13 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
     let childEl = document.createElement(tag)
 
     if (tag === "a") {
-        newNode.href = value
-        newNode.text = "link"
-        childEl.setAttribute("href", value)
+        let [hrefTop, textContent] = value.split(":")
+        let href = getProjectBasePath() + hrefTop
+        newNode.href = href
+        newNode.text = textContent
+        childEl.setAttribute("href", href)
         let p = document.createElement("p")
-        value = "link"
-        p.innerText = value
+        p.innerText = textContent
         childEl.style.display = "block"
         childEl.appendChild(p)
     } else if (tag === "img") {
@@ -767,9 +791,13 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
         })
         return
     } else {
-        let p = document.createElement("p")
-        p.innerText = value
-        childEl.appendChild(p)
+        if (tag !== "p") {
+            let p = document.createElement("p")
+            p.innerText = value
+            childEl.appendChild(p)
+        } else {
+            childEl.innerText = value
+        }
     }
 
     childEl.classList.add("__node")
@@ -797,6 +825,14 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
             appendElementDescriptionCollapsible(childEl)
     }
     return childNodeId
+}
+
+function getProjectBasePath() {
+    let [userId, projectName] = window.location.pathname.split("/").filter(seg => seg !== "").slice(0, 2)
+    if (!userId || !projectName) {
+        throw new Error("getProjectBasePath: unable to retrieve userId and or projectName")
+    }
+    return `/${userId}/${projectName}/`
 }
 
 function getElementAfterNewNodeId(nodeId, newNodeId) {
@@ -1213,7 +1249,7 @@ function setGap(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.gap = `${value}px`
+    nodeEl.style.gap = addPxMeasure(value)
     updateSiteRep(nodeId, "gap", value)
 }
 
@@ -1226,6 +1262,22 @@ function setTextAlignment(nodeId, value) {
     possibleValues.forEach(val => {
         if (val === value) {
             nodeEl.style.textAlign = val
+            updateSiteRep(nodeId, val, true)
+        } else {
+            updateSiteRep(nodeId, val, false)
+        }
+    })
+}
+
+function setInlineOrBlock(nodeId, value) {
+    let nodeEl = getnodeElementByNodeId(nodeId)
+
+    if (!nodeEl) return
+
+    let possibleValues = ["inline-block", "block"]
+    possibleValues.forEach(val => {
+        if (val === value) {
+            nodeEl.style.display = val
             updateSiteRep(nodeId, val, true)
         } else {
             updateSiteRep(nodeId, val, false)
@@ -1397,11 +1449,19 @@ function findNodeWithIdAndUpdateId(node, prevNodeId, currentNodeId, parent) {
     }
 }
 
+function addPxMeasure(value) {
+    let strVal = `${value}`
+    if (strVal.endsWith("px") || strVal.endsWith("em") || strVal.endsWith("rem")) {
+        return strVal
+    }
+    return `${value}px`
+}
+
 function setMargin(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.margin = `${value}px`
+    nodeEl.style.margin = addPxMeasure(value)
     updateSiteRep(nodeId, "margin", value)
 }
 
@@ -1409,7 +1469,7 @@ function setPadding(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.padding = `${value}px`
+    nodeEl.style.padding = addPxMeasure(value)
     updateSiteRep(nodeId, "padding", value)
 }
 
@@ -1417,7 +1477,7 @@ function setPaddingTop(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.paddingTop = `${value}px`
+    nodeEl.style.paddingTop = addPxMeasure(value)
     updateSiteRep(nodeId, "paddingTop", value)
 }
 
@@ -1425,7 +1485,7 @@ function setPaddingBottom(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.paddingBottom = `${value}px`
+    nodeEl.style.paddingBottom = addPxMeasure(value)
     updateSiteRep(nodeId, "paddingBottom", value)
 }
 
@@ -1433,7 +1493,7 @@ function setPaddingLeft(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.paddingLeft = `${value}px`
+    nodeEl.style.paddingLeft = addPxMeasure(value)
     updateSiteRep(nodeId, "paddingLeft", value)
 }
 
@@ -1441,7 +1501,7 @@ function setPaddingRight(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.paddingRight = `${value}px`
+    nodeEl.style.paddingRight = addPxMeasure(value)
     updateSiteRep(nodeId, "paddingRight", value)
 }
 
@@ -1449,7 +1509,7 @@ function setEdgeRounding(nodeId, value) {
     let nodeEl = getnodeElementByNodeId(nodeId)
 
     if (!nodeEl) return
-    nodeEl.style.borderRadius = `${value}px`
+    nodeEl.style.borderRadius = addPxMeasure(value)
     updateSiteRep(nodeId, "edgeRounding", value)
 }
 
@@ -1492,7 +1552,14 @@ function setExtendHtml(nodeId, value) {
     if (!nodeEl) return
     if (!value.endsWith("::done")) return
     value = value.replace("::done", "")
-    nodeEl.insertAdjacentHTML('beforeend', value);
+    if (value) nodeEl.insertAdjacentHTML('beforeend', value);
+    else {
+        Array.from(nodeEl.children).forEach(c => {
+            if (!c.classList.contains(nodeId)) {
+                c.remove()
+            }
+        })
+    }
     updateSiteRep(nodeId, "extendedHtml", value)
     closeCollapsible(nodeId)
 }

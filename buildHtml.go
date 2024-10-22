@@ -18,6 +18,8 @@ var stylePropsAndItsCss = [][2]string{
 	{"backgroundColor", "background-color"},
 	{"horizontal", "display"},
 	{"vertical", "display"},
+	{"inline-block", "display"},
+	{"block", "display"},
 	{"gap", "gap"},
 	{"left", "text-align"},
 	{"center", "text-align"},
@@ -202,6 +204,11 @@ func buildPathHtml(node map[string]any, path string) string {
 
 func getContent(node map[string]any) string {
 	if text, ok := node["text"].(string); ok {
+		if nodeTag, ok := node["tag"]; ok {
+			if nodeTag == "p" {
+				return text
+			}
+		}
 		return fmt.Sprintf(`<p>%s</p>`, text)
 	}
 	return ""
