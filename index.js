@@ -38,6 +38,7 @@ const collapsibleFieldElementTypeAction = [
     ["paddingLeft", "input:text", setPaddingLeft, "paddingLeft"],
     ["paddingRight", "input:text", setPaddingRight, "paddingRight"],
     ["edgeRounding", "input:text", setEdgeRounding, "edgeRounding"],
+    ["set attribute", "input:text", setCustomAttribute],
     ["make node expandable", "button", makeNodeExpandable],
     ["extend Css", "input:text", setExtendCss, "extendedStyle"],
     ["extend Html", "textarea", setExtendHtml, "extendedHtml"],
@@ -429,7 +430,7 @@ document.addEventListener("keydown", (e) => {
 });
 
 function getnodeElementByNodeId(nodeId) {
-    const nodes = document.querySelectorAll(".__node")
+    const nodes = document.querySelectorAll("[nodeId]")
     for (let i = 0; i < nodes.length; i++) {
         let node = nodes[i]
         if (node.getAttribute("nodeId") === nodeId) return node
@@ -476,6 +477,20 @@ function updateSiteRep(nodeId, field, value) {
     }
 
     siteRepNode[field] = value
+}
+
+function updateNodeAttributes(nodeId, attribute, value) {
+    let siteRepNode = getSiteRepNodeByNodeId(nodeId)
+    if (!siteRepNode) {
+        throw new Error(`updateNodeAttributes: node with nodeId: ${nodeId} doesnt exist in siterep`)
+    }
+
+    if (siteRepNode.attributes) {
+        siteRepNode.attributes[attribute] = value
+    } else {
+        siteRepNode.attributes = {}
+        siteRepNode.attributes[attribute] = value
+    }
 }
 
 function getSiteRepNodeParentByChildNodeId(nodeId) {
@@ -612,7 +627,13 @@ function setTextInFirstChildParagraph(nodeEl, text) {
         nodeEl.appendChild(collapsible)
     } else {
         let firstP = nodeEl.querySelector("p")
-        firstP.innerText = text
+        if (firstP) {
+            firstP.innerText = text
+        } else {
+            firstP = document.createElement("p")
+            firstP.innerText = text
+            nodeEl.appendChild(firstP)
+        }        
     }
 }
 
@@ -628,6 +649,7 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     {type: "subheading", value: "h3"},
     {type: "link", value: "a"},
     {type: "image", value: "img"},
+    {type: "other", value: "other"},
 ], newNodeId="", position=""}) {
     let body = document.querySelector("body")
     let nodeElCreationForm = document.createElement("div")
@@ -666,6 +688,11 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     linkInput.style.display = "block"
     nodeElCreationForm.appendChild(linkInput)
 
+    let tagInput = document.createElement("input")
+    tagInput.placeholder = "tag"
+    tagInput.style.display = "block"
+    nodeElCreationForm.appendChild(tagInput)
+
     let imageInput = document.createElement("input")
     imageInput.setAttribute("type", "file")
     imageInput.style.display = "block"
@@ -675,15 +702,23 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
         if (typeSelectorEl.value === "a") {
             linkInput.disabled = false
             textContent.disabled = false
-            imageInput.disabled = true    
+            imageInput.disabled = true
+            tagInput.disabled = true    
         } else if (typeSelectorEl.value === "img") {
             imageInput.disabled = false
+            textContent.disabled = true
+            linkInput.disabled = true
+            tagInput.disabled = true
+        } else if (typeSelectorEl.value === "other") {
+            tagInput.disabled = false
+            imageInput.disabled = true
             textContent.disabled = true
             linkInput.disabled = true
         } else {
             textContent.disabled = false
             linkInput.disabled = true 
             imageInput.disabled =true
+            tagInput.disabled = true
         }
     }
 
@@ -709,9 +744,13 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
     let appendChildBtn = document.createElement("button")
     appendChildBtn.innerText = "add"
     appendChildBtn.onclick = () => {
+        let tag = typeSelectorEl.value
+        if (tag === "other") {
+            tag = tagInput.value
+        }
         appendContentToNodeEl(
             nodeId, 
-            typeSelectorEl.value, 
+            tag, 
             getFormValue(typeSelectorEl.value), 
             newNodeId, 
             position
@@ -753,22 +792,25 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
         childEl.style.display = "block"
         childEl.appendChild(p)
     } else if (tag === "img") {
-        let newNodeId = Date.now().toString()
-        appendContentToNodeEl(nodeId, "div", "", newNodeId, position)
-        let imageContainer = getnodeElementByNodeId(newNodeId)
+        let passiveParentNodeId = Date.now().toString()
+        appendContentToNodeEl(nodeId, "div", "", passiveParentNodeId, position)
+        let imageContainer = getnodeElementByNodeId(passiveParentNodeId)
         if (!imageContainer) {
-            alert(`appendContentToNodeEl: element with newNodeId ${newNodeId} does not exist`)
-            throw new Error(`appendContentToNodeEl: element with newNodeId ${newNodeId} does not exist`)
+            alert(`appendContentToNodeEl: element with newNodeId ${passiveParentNodeId} does not exist`)
+            throw new Error(`appendContentToNodeEl: element with newNodeId ${passiveParentNodeId} does not exist`)
         }
 
         let childNodeId = Date.now().toString()
 
-        let parentNode = getSiteRepNodeByNodeId(newNodeId)
+        let parentNode = getSiteRepNodeByNodeId(passiveParentNodeId)
+        parentNode.isPassiveParent = true
+        parentNode.delegateTo = childNodeId
     
         let childEl = document.createElement(tag)
 
         const imageId = Date.now().toString()
         childEl.setAttribute("id", imageId)
+        childEl.setAttribute("nodeId", childNodeId)
         childEl.setAttribute("max-width", "100%")
         childEl.setAttribute("max-height", "100%")
         childEl.setAttribute("width", "100%")
@@ -778,6 +820,7 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
         childEl.style.borderRadius = "inherit"
         let newNode = {tag, width: "100%", height: "100%", edgeRounding: "inherit"}
         newNode.nodeId = childNodeId
+        newNode.activeChildNodeId = childNodeId
         imageContainer.appendChild(childEl)
         displayImage(value, imageId)
         // TO-DO
@@ -789,6 +832,34 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
             newNode.src = baseUrl + "/images/" + hash
             addChildToSiteRep(parentNode.nodeId, newNode)
         })
+        return
+    } else if (tag === "input" || tag === "textarea") {
+        let passiveParentNodeId = Date.now().toString()
+        appendContentToNodeEl(nodeId, "div", "", passiveParentNodeId, position)
+        let newNodeContainer = getnodeElementByNodeId(passiveParentNodeId)
+        if (!newNodeContainer) {
+            alert(`appendContentToNodeEl: element with newNodeId ${passiveParentNodeId} does not exist`)
+            throw new Error(`appendContentToNodeEl: element with newNodeId ${passiveParentNodeId} does not exist`)
+        }
+
+        let childNodeId = Date.now().toString()
+
+        let parentNode = getSiteRepNodeByNodeId(passiveParentNodeId)
+        parentNode.isPassiveParent = true
+        parentNode.delegateTo = childNodeId
+    
+        let childEl = document.createElement(tag)
+
+        childEl.setAttribute("nodeId", childNodeId)
+        childEl.style.width = "100%"
+        childEl.style.height = "100%"
+        childEl.style.display = "inline-block"
+        childEl.style.borderRadius = "inherit"
+        let newNode = {tag, width: "100%", height: "100%", edgeRounding: "inherit"}
+        newNode.nodeId = childNodeId
+        newNode.activeChildNodeId = childNodeId
+        newNodeContainer.appendChild(childEl)
+        addChildToSiteRep(parentNode.nodeId, newNode)
         return
     } else {
         if (tag !== "p") {
@@ -1439,6 +1510,10 @@ function findNodeWithIdAndUpdateId(node, prevNodeId, currentNodeId, parent) {
             parent.children[currentNodeId] = node
             delete parent.children[prevNodeId]
         }
+        if (node.activeChildNodeId && parent.isPassiveParent) {
+            parent.delegateTo = currentNodeId
+            node.activeChildNodeId =  currentNodeId
+        }
         return
     }
 
@@ -1511,6 +1586,30 @@ function setEdgeRounding(nodeId, value) {
     if (!nodeEl) return
     nodeEl.style.borderRadius = addPxMeasure(value)
     updateSiteRep(nodeId, "edgeRounding", value)
+}
+
+function setCustomAttribute(nodeId, desc) {
+    if (!desc.endsWith("::done")) return
+    desc = desc.replace("::done", "")
+    let attributeValuePairs = desc.split(",").map(d => d.split(":"))
+
+    let node = getSiteRepNodeByNodeId(nodeId)
+    if (node.isPassiveParent) {
+        node = getSiteRepNodeByNodeId(node.delegateTo)
+    }
+
+    let nodeEl = getnodeElementByNodeId(node.nodeId)
+
+    if (!nodeEl) return
+
+    attributeValuePairs.map(([attr, value]) => {
+        if (!attr || !value) return
+        attr = attr.trim()
+        value = value.trim()
+        nodeEl.setAttribute(attr, value)
+        updateNodeAttributes(node.nodeId, attr, value)
+    })
+    closeCollapsible(nodeId)
 }
 
 function setExtendCss(nodeId, value) {
@@ -1699,7 +1798,7 @@ async function commitSiteRep() {
 
 async function makeAddPathRequest(path) {
 
-    let relativePath = window.location.pathname + path
+    let relativePath = getProjectBasePath() + path
     relativePath = relativePath.replace(/\/\//g, "/")
 
     let url = baseUrl + relativePath

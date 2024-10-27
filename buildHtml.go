@@ -377,6 +377,14 @@ func getAttributes(node map[string]any) string {
 		}
 	}
 
+	if attributes, ok := node["attributes"].(map[string]any); ok {
+		for attribute, value := range attributes {
+			if value, ok := value.(string); ok {
+				attr = fmt.Sprintf(`%s %s="%s"`, attr, attribute, value)
+			}
+		}
+	}
+
 	return attr
 }
 
