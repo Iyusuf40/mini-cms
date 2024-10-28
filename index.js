@@ -224,7 +224,7 @@ function diplayElementDescription(nodeId, isMainElement) {
     document.querySelector("body").appendChild(elementDescriptionEl)
 }
 
-function makeElementDescriptionCollapsible(nodeId, isMainElement=false) {
+function makeNodeDescriptionCollapsiblerBtn(nodeId, isMainElement=false) {
     let collapsibleContainersContainer = document.createElement("div")
     collapsibleContainersContainer.classList.add(nodeId) // identify each node's modifier
     collapsibleContainersContainer.style.position = "absolute"
@@ -304,14 +304,29 @@ function getElementDescriptionCollapsible(nodeEl, nodeId) {
 function appendElementDescriptionCollapsible(nodeEl) {
     let nodeId = nodeEl.getAttribute("nodeId")
     if (!nodeId) return
-    let collapsible = makeElementDescriptionCollapsible(nodeId, nodeEl.tagName === "MAIN")
-    collapsible.style.backgroundColor = nodeEl.tagName === "MAIN" ? "red" : getRandomColor()
-    nodeEl.appendChild(collapsible)
+    let nodeCollapsiblerBtn = makeNodeDescriptionCollapsiblerBtn(nodeId, nodeEl.tagName === "MAIN")
+    if (nodeEl.tagName === "IMG") {
+        makeImageChangeable(nodeEl, nodeId)
+    }
+    nodeCollapsiblerBtn.style.backgroundColor = nodeEl.tagName === "MAIN" ? "red" : getRandomColor()
+    nodeEl.appendChild(nodeCollapsiblerBtn)
     setCollapsibleToggleBtnWidthRelativeToParent(nodeId)
     nodeEl.addEventListener('contextmenu', function(e) {
         e.preventDefault()
         let collapsibleTglBtn = getCollapsibleToggleBtn(nodeId)
         collapsibleTglBtn.click()
+    })
+}
+
+function makeImageChangeable(nodeEl, nodeId) {
+    nodeEl.addEventListener("click", () => {
+        let imageInput = document.createElement("input")
+        imageInput.setAttribute("type", "file")
+        imageInput.click()
+        imageInput.onchange = () => {
+            appendContentToNodeEl(nodeId, "img", imageInput.files?.item(0), "", "after")
+            deleteNode(nodeId, "")
+        }
     })
 }
 
@@ -755,6 +770,7 @@ function createNodeElCreationForm({nodeId, nodeCreationTypeOptions = [
             newNodeId, 
             position
         )
+
         typeSelectorEl.removeEventListener('change', disableIrrelevantFields)
         nodeElCreationForm.remove()
     }
@@ -783,6 +799,7 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
 
     if (tag === "a") {
         let [hrefTop, textContent] = value.split(":")
+        hrefTop = hrefTop.replace("//", "/")
         let href = getProjectBasePath() + hrefTop
         newNode.href = href
         newNode.text = textContent
@@ -833,7 +850,9 @@ function appendContentToNodeEl(nodeId, tag, value, newNodeId="", position="") {
             addChildToSiteRep(parentNode.nodeId, newNode)
         })
         return
-    } else if (tag === "input" || tag === "textarea") {
+    } else if ([
+        "input", "textarea", "button", "br", "hr"
+    ].includes(tag)) {
         let passiveParentNodeId = Date.now().toString()
         appendContentToNodeEl(nodeId, "div", "", passiveParentNodeId, position)
         let newNodeContainer = getnodeElementByNodeId(passiveParentNodeId)
